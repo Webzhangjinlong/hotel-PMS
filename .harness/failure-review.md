@@ -9,6 +9,7 @@
 | 2026-09-15 | VO 生成脚本产物编译 | pms-common 编译失败：NightAuditArchiveVO 注释损坏（`/** * xxx */ */`）导致"非法的类型开始" | 生成脚本提取多行 javadoc 时未合并清理，闭合标记重复 | 修复脚本注释提取正则，批量修复全部生成 VO，重新编译通过 | gen_vo_from_entity.py + lessons L06 | ✅ 已修复 |
 | 2026-09-15 | Harness 约束集成（首次） | 审计发现存量违规：Controller 直调 Mapper/Entity 14 处、报表服务硬编码 hotelId=1L 8 处、源码目录混入 20+ 备份文件 | 项目此前未按分层/隔离约束开发 | 制定约束标准 + ArchUnit 守护 + 存量违规登记 rule-registry（V-01~V-06） | AGENTS.md / .harness/* / ArchitectureTest / CI | ✅ 已登记，按 backlog 治理 |
 | 2026-09-15 | 前端门禁验证 | `npm run build` 失败：EnhancedReport.vue 导入不存在的 `getFullReport` | 页面新增时未维护 api 层导出，且无前端 CI 门禁 | report.js 补齐 `getFullReport`（→ /api/v1/metrics/full-report），构建通过；登记 V-07 + lessons L05 | CI frontend-ci + report.js | ✅ 已修复 |
+| 2026-09-15 | 前端 hotelId 治理（60 处/20 文件） | 批量脚本修正后 `npm run build` 失败：MainLayout.vue 多行 import（`import {\n ... } from ...`）中间被插入 `const userStore = useUserStore()`，语法错误 | 修正脚本按"行首 import 匹配"定位插入点，未处理多行 import 语句 | 按括号平衡定位 import 块末尾重插；构建通过 | fix_frontend_hotelid.py（括号跟踪）+ lessons L07 | ✅ 已修复 |
 
 ---
 

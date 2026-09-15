@@ -215,6 +215,8 @@
 </template>
 
 <script setup>
+
+import { useUserStore } from '@/stores/user'
 /**
  * 快速入住页面
  * <p>
@@ -232,6 +234,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft, Check } from '@element-plus/icons-vue'
 import request from '@/utils/request'
+const userStore = useUserStore()
 
 // ========== 路由和状态 ==========
 const router = useRouter()
@@ -252,7 +255,7 @@ const roomLoading = ref(false)
  * 入住表单数据
  */
 const formData = reactive({
-  hotelId: 1,
+  hotelId: userStore.hotelId,
   guestName: '',
   guestPhone: '',
   guestIdNo: '',

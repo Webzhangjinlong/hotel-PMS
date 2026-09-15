@@ -115,11 +115,11 @@ import { ElMessage } from 'element-plus'
 import { User, Lock, Key, Loading, OfficeBuilding } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { getCaptcha } from '@/api/auth'
+const userStore = useUserStore()
 
 // ========== 路由和状态 ==========
 const router = useRouter()
 const route = useRoute()
-const userStore = useUserStore()
 
 // ========== 表单相关 ==========
 const loginFormRef = ref(null)

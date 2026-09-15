@@ -365,11 +365,14 @@
 </template>
 
 <script setup>
+
+import { useUserStore } from '@/stores/user'
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Plus, Money } from '@element-plus/icons-vue'
 import request from '@/utils/request'
+const userStore = useUserStore()
 
 const router = useRouter()
 const route = useRoute()
@@ -382,7 +385,7 @@ const isEdit = ref(false)
 const createFormRef = ref(null)
 const createLoading = ref(false)
 const createForm = reactive({
-  hotelId: 1,
+  hotelId: userStore.hotelId,
   teamName: '',
   contactName: '',
   contactPhone: '',
@@ -451,7 +454,7 @@ const fetchAvailableRooms = async () => {
   try {
     const res = await request.get('/v1/rooms', { 
       params: { 
-        hotelId: 1, 
+        hotelId: userStore.hotelId, 
         status: 'AVAILABLE',
         size: 1000 
       } 
@@ -484,7 +487,7 @@ watch(() => route.path, () => {
 // ========== 获取房型列表 ==========
 const fetchRoomTypes = async () => {
   try {
-    const res = await request.get('/v1/room-types', { params: { hotelId: 1, size: 100 } })
+    const res = await request.get('/v1/room-types', { params: { hotelId: userStore.hotelId, size: 100 } })
     roomTypes.value = res.data.records
   } catch (error) {
     console.error('获取房型列表失败', error)
@@ -494,7 +497,7 @@ const fetchRoomTypes = async () => {
 // ========== 获取房价码列表 ==========
 const fetchPricePlans = async () => {
   try {
-    const res = await request.get('/v1/price-plans/list', { params: { hotelId: 1 } })
+    const res = await request.get('/v1/price-plans/list', { params: { hotelId: userStore.hotelId } })
     if (res.code === 200) {
       pricePlanOptions.value = res.data || []
     }

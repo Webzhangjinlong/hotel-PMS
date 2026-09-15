@@ -77,12 +77,15 @@
 </template>
 
 <script setup>
+
+import { useUserStore } from '@/stores/user'
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getHotelConfigs, updateHotelConfigs } from '@/api/hotel-config'
+const userStore = useUserStore()
 
 const saving = ref(false)
-const hotelId = 1 // 默认酒店ID，实际应从用户登录信息获取
+const hotelId = userStore.hotelId // 默认酒店ID，实际应从用户登录信息获取
 
 const configForm = reactive({
   checkoutTime: '12:00',

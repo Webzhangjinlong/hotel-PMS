@@ -264,16 +264,19 @@
   </div>
 </template>
 <script setup>
+
+import { useUserStore } from '@/stores/user'
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Refresh, Edit, Delete, Switch, House, CircleCheck, User, Brush, SetUp, WarningFilled } from '@element-plus/icons-vue'
 import request from '@/utils/request'
+const userStore = useUserStore()
 
 // ========== 查询参数 ==========
 const queryParams = reactive({
   page: 1,
   size: 10,
-  hotelId: 1,
+  hotelId: userStore.hotelId,
   roomNo: '',
   roomTypeId: null,
   floorId: null,
@@ -351,7 +354,7 @@ const fetchData = async () => {
 
 const fetchSummary = async () => {
   try {
-    const res = await request.get('/v1/rooms/summary', { params: { hotelId: 1 } })
+    const res = await request.get('/v1/rooms/summary', { params: { hotelId: userStore.hotelId } })
     Object.assign(summary, res.data)
   } catch (error) {
     console.error('获取房间统计数据失败', error)
@@ -360,7 +363,7 @@ const fetchSummary = async () => {
 
 const fetchRoomTypeOptions = async () => {
   try {
-    const res = await request.get('/v1/room-types', { params: { hotelId: 1, pageNum: 1, pageSize: 100 } })
+    const res = await request.get('/v1/room-types', { params: { hotelId: userStore.hotelId, pageNum: 1, pageSize: 100 } })
     roomTypeOptions.value = res.data.records || []
   } catch (error) {
     console.error('获取房型选项失败', error)
@@ -369,7 +372,7 @@ const fetchRoomTypeOptions = async () => {
 
 const fetchFloorOptions = async () => {
   try {
-    const res = await request.get('/v1/floors', { params: { hotelId: 1, pageNum: 1, pageSize: 100 } })
+    const res = await request.get('/v1/floors', { params: { hotelId: userStore.hotelId, pageNum: 1, pageSize: 100 } })
     floorOptions.value = res.data.records || []
   } catch (error) {
     console.error('获取楼层选项失败', error)
@@ -483,7 +486,7 @@ const handleSubmit = async () => {
         await request.put('/v1/rooms/' + editId.value, formData)
         ElMessage.success('更新成功')
       } else {
-        await request.post('/v1/rooms', { ...formData, hotelId: 1 })
+        await request.post('/v1/rooms', { ...formData, hotelId: userStore.hotelId })
         ElMessage.success('新增成功')
       }
       dialogVisible.value = false

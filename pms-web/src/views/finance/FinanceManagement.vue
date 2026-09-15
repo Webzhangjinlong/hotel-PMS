@@ -552,10 +552,13 @@
 </template>
 
 <script setup>
+
+import { useUserStore } from '@/stores/user'
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@/utils/request'
 import { prepay, transferPrepayment, refundPrepayment as refundPrepaymentApi } from '@/api/folio'
+const userStore = useUserStore()
 
 // ========== 标签页 ==========
 const activeTab = ref('transactions')
@@ -644,7 +647,7 @@ const creditCompanySaving = ref(false)
 const creditCompanyFormRef = ref(null)
 const creditCompanyForm = reactive({
   id: null,
-  hotelId: 1,
+  hotelId: userStore.hotelId,
   companyName: '',
   contactName: '',
   contactPhone: '',
@@ -701,7 +704,7 @@ const showCreditCompanyDialog = (row = null) => {
   } else {
     Object.assign(creditCompanyForm, {
       id: null,
-      hotelId: 1,
+      hotelId: userStore.hotelId,
       companyName: '',
       contactName: '',
       contactPhone: '',

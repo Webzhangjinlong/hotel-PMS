@@ -171,11 +171,14 @@
 </template>
 
 <script setup>
+
+import { useUserStore } from '@/stores/user'
 import { ref, reactive, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Refresh } from '@element-plus/icons-vue'
 import { getPoliceUploadList, retryPoliceUpload, batchRetryPoliceUpload, manualPoliceUpload, getPoliceUploadStats } from '@/api/police'
 import { getStayList } from '@/api/stay'
+const userStore = useUserStore()
 
 const loading = ref(false)
 const uploading = ref(false)
@@ -185,7 +188,7 @@ const selectedIds = ref([])
 const dateRange = ref([])
 
 const queryParams = reactive({
-  hotelId: 1, // 默认酒店ID
+  hotelId: userStore.hotelId, // 默认酒店ID
   status: '',
   guestName: '',
   startDate: '',

@@ -10,4 +10,5 @@
 | L03 | 项目无 git 仓库 / 无测试 / 无 CI，架构约束只能靠文档软约束，无法机器强制 | 项目早期未按 harness 工程约束开发和执行 | 本仓库（AGENTS.md/.harness/ArchUnit/CI/verify-local） | ✅ 已固化（本次集成） |
 | L04 | Controller 直调 Mapper/Entity（UserController 等 8 个 Controller、14 处引用），破坏分层 | 为图省事绕过 Service 层直接访问数据层 | ArchUnit R03/R04（豁免已全部清零）+ 全部 Controller 改经 Service + DTO/VO（V-01/V-02） | ✅ 已治理 |
 | L05 | 前端引用不存在的 API 导出（`EnhancedReport.vue` 导入 `getFullReport` 而 report.js 未导出），生产构建直接失败 | 新增页面未同步维护 api 层导出，且此前无前端 CI 门禁，缺陷未被发现 | CI frontend-ci（npm run build 门禁）+ V-07 已修复 | ✅ 已固化 |
+| L07 | 前端硬编码 hotelId=1 登记规模严重低估：rule-registry 只登记 EnhancedReport.vue 1 处，审计全仓扫描发现实际 60 处/20 个 Vue 文件 | 登记违规时只凭已知违规点，未做全仓扫描，导致治理范围与实际不符 | CI grep 门禁（backend-ci 查 `hotelId=1L`、frontend-ci 查 `hotelId: 1`）+ 治理前全仓扫描流程（fix_frontend_hotelid.py） | ✅ 已固化 |
 | L06 | VO 生成脚本把多行 javadoc 提取成 `/** * xxx */ */` 损坏注释，导致 pms-common 编译失败 | 生成脚本按行提取注释时未合并多行并清理 `*` 前缀，闭合标记重复 | gen_vo_from_entity.py 修复（正则合并多行注释）；生成后立即编译验证 | ✅ 已固化 |

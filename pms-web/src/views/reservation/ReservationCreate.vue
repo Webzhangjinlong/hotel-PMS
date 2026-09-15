@@ -264,6 +264,8 @@
 </template>
 
 <script setup>
+
+import { useUserStore } from '@/stores/user'
 /**
  * 新建预订页面
  * 提供完整的预订创建功能
@@ -274,6 +276,7 @@ import { ElMessage } from 'element-plus'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 import RoomSelectDialog from './RoomSelectDialog.vue'
+const userStore = useUserStore()
 
 const router = useRouter()
 const route = useRoute()
@@ -308,7 +311,7 @@ const formData = reactive({
   pricePlanId: null,
   dailyPrice: null,
   specialRequests: '',
-  hotelId: 1
+  hotelId: userStore.hotelId
 })
 
 // ========== 表单验证规则 ==========
@@ -422,7 +425,7 @@ const onDailyPriceChange = () => {}
 const handlePricePlanChange = async () => {
   if (formData.pricePlanId && formData.roomTypeId) {
     try {
-      const res = await request.get('/v1/prices/query', { params: { hotelId: 1, roomTypeId: formData.roomTypeId, date: new Date().toISOString().split('T')[0] } })
+      const res = await request.get('/v1/prices/query', { params: { hotelId: userStore.hotelId, roomTypeId: formData.roomTypeId, date: new Date().toISOString().split('T')[0] } })
       if (res.data?.price) {
         planDailyPrice.value = res.data.price // 房价码价格（只读参考价）
         formData.dailyPrice = res.data.price // 预定价格（初始值=房价码价格）

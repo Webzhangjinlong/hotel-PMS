@@ -123,10 +123,13 @@
 </template>
 
 <script setup>
+
+import { useUserStore } from '@/stores/user'
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import request from '@/utils/request'
+const userStore = useUserStore()
 
 // ========== 查询参数 ==========
 const queryParams = reactive({
@@ -304,7 +307,7 @@ const handleSubmit = async () => {
         ElMessage.success('更新成功')
       } else {
         // 新增时需要传入酒店ID（这里暂时使用1）
-        await request.post('/v1/room-types', { ...formData, hotelId: 1 })
+        await request.post('/v1/room-types', { ...formData, hotelId: userStore.hotelId })
         ElMessage.success('新增成功')
       }
       dialogVisible.value = false

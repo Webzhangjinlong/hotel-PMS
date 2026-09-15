@@ -18,7 +18,7 @@
 | R07 | Service 命名 `*Service`（顶层类，config 基础设施 `*Helper` 白名单） | ArchUnit `service_naming` | `mvn verify` | ✅ 生效 |
 | R08 | Service 不得依赖 Controller | ArchUnit `service_never_touches_controller` | `mvn verify` | ✅ 生效 |
 | R09 | Controller 不得依赖其他 Controller（ExceptionHandler 除外） | ArchUnit `controller_never_touches_controller` | `mvn verify` | ✅ 生效 |
-| R10 | **多酒店隔离：禁止硬编码 hotel_id（如 1L）** | 代码审查 + 静态扫描（Grep 门禁待建） | CI 冒烟 + 人工复查 | ✅ 生效（V-03/V-06 已修复） |
+| R10 | **多酒店隔离：禁止硬编码 hotel_id（如 1L / hotelId: 1）** | ArchUnit（金额类）+ CI grep 门禁（backend-ci 查 `hotelId=1L`、frontend-ci 查 `hotelId: 1`） | `mvn verify` + CI | ✅ 生效（V-03/V-06 已修复，前后端门禁已建） |
 | R11 | 跨业务域禁止直调他人 Mapper（走对方 Service） | 文档约束（存量违规已收敛，跨域调用按 rule-registry 登记） | 代码审查 | ✅ 生效（V-04 死代码已清除） |
 | R12 | 结构变更只走 Flyway，禁止改已合入脚本 | Flyway checksum + `db/migration/V*.sql` | `mvn verify`（迁移校验） | ✅ 生效 |
 | R13 | 接口统一返回 `Result<T>`；分页统一 `PageRequest/PageResponse` | 代码约定 + 审查 | 人工复查 | ✅ 生效（约定） |
@@ -36,8 +36,9 @@
 | V-03 | 硬编码 hotelId=1L | `ReportServiceImpl` 8 处 | R10 | 12 个报表方法签名加 hotelId 参数，Controller 从 UserContext.getHotelId() 传入 | ✅ 已治理 |
 | V-04 | 报表服务跨域直调 Mapper | `ReportServiceImpl` 直调 DepositMapper/MemberMapper/SysShiftMapper 等 | R11 | 核验为**死代码**（5 个 Mapper 字段只声明未调用），已删除 | ✅ 已治理（实为死代码） |
 | V-05 | 源码目录混入 `.bak`/`.backup` 文件 | 全仓 70 个（`*.bak`、`*.backup`、`*.backup2`~`*.backup6`） | AGENTS.md DO NOT | 逐一核验有正式文件后全部删除 | ✅ 已治理 |
-| V-06 | 前端硬编码 hotelId=1 | `pms-web/src/views/reports/EnhancedReport.vue`（queryParams.hotelId=1） | R10 | 改为从 user store 取 `userStore.hotelId` | ✅ 已治理 |
+| V-06 | 前端硬编码 hotelId=1 | 全仓 **60 处 / 20 个 Vue 文件**（RoomBoard 9、PriceManagement 8、RoomCalendar 7、RoomList 5、TeamReservationDetail 4、ReservationList 4、DashboardView 3、DepositManagement 3、PricePlan 3、DailyReport 2、FinanceManagement 2、ReservationCreate 2、其余 8 个各 1） | R10 | 全部改为 `userStore.hotelId`（注入 useUserStore）；CI frontend-ci 新增 grep 门禁拦截 `hotelId: 1` | ✅ 已治理 |
 | V-07 | 前端引用不存在的 API 导出 | `EnhancedReport.vue` 导入 `getFullReport` 而 `api/report.js` 未导出（存量 bug，构建失败） | CI frontend-ci | 已修复（report.js 补 getFullReport → /api/v1/metrics/full-report） | ✅ 已修复 |
+| V-08 | 前端约束缺机器门禁（审计发现） | R10 前端只有构建门禁，`hotelId: 1` 硬编码可通过 CI（本次治理 60 处） | R10 | backend-ci 加 `hotelId=1L` grep、frontend-ci 加 `hotelId: 1` grep，出现即失败 | ✅ 已治理 |
 
 ## 规则注册流程
 

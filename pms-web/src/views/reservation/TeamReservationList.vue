@@ -164,17 +164,20 @@
 </template>
 
 <script setup>
+
+import { useUserStore } from '@/stores/user'
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Refresh } from '@element-plus/icons-vue'
 import request from '@/utils/request'
+const userStore = useUserStore()
 
 const router = useRouter()
 
 // ========== 查询参数 ==========
 const queryParams = reactive({
-  hotelId: 1, // 默认酒店ID
+  hotelId: userStore.hotelId, // 默认酒店ID
   teamReservationNo: '',
   teamName: '',
   contactName: '',

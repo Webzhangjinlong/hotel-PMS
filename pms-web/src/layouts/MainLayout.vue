@@ -147,9 +147,10 @@ import {
   Expand, Fold, ArrowDown, UserFilled, OfficeBuilding
 } from '@element-plus/icons-vue'
 
+const userStore = useUserStore()
+
 const route = useRoute()
 const router = useRouter()
-const userStore = useUserStore()
 const isCollapse = ref(false)
 
 const activeMenu = computed(() => {

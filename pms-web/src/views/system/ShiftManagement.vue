@@ -601,6 +601,7 @@ import {
   getShiftMessages, markMessageRead, getNotifyConfig, saveNotifyConfig
 } from '@/api/shift'
 import { getUserList } from '@/api/user'
+const userStore = useUserStore()
 
 const activeTab = ref('create')
 const loading = ref(false)
@@ -609,7 +610,6 @@ const submitted = ref(false)  // 是否已提交，防止重复提交
 const rowSaving = ref(null)  // 当前正在提交的行ID，防止重复提交
 const messageLoading = ref(false)
 const currentStep = ref(0)
-const userStore = useUserStore()
 const currentUserId = ref(0)
 
 // 用户列表

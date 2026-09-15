@@ -66,17 +66,20 @@
 </template>
 
 <script setup>
+
+import { useUserStore } from '@/stores/user'
 import { ref, onMounted, reactive } from 'vue'
 import { getMetrics } from '@/api/metrics'
 import * as echarts from 'echarts'
 import { ElMessage } from 'element-plus'
+const userStore = useUserStore()
 
 // 1. 初始化日期
 const today = new Date()
 const formatDate = (date) => date.toISOString().split('T')[0]
 
 const queryParams = reactive({
-  hotelId: 1, // 假设酒店ID为1
+  hotelId: userStore.hotelId, // 假设酒店ID为1
   startDate: formatDate(today),
   endDate: formatDate(today)
 })

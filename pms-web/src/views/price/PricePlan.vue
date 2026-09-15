@@ -133,10 +133,13 @@
 </template>
 
 <script setup>
+
+import { useUserStore } from '@/stores/user'
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
 import request from '@/utils/request'
+const userStore = useUserStore()
 
 const loading = ref(false)
 const tableData = ref([])
@@ -168,7 +171,7 @@ onMounted(() => { fetchRoomTypeOptions(); fetchData() })
 
 const fetchRoomTypeOptions = async () => {
   try {
-    const res = await request.get('/v1/room-types/options', { params: { hotelId: 1 } })
+    const res = await request.get('/v1/room-types/options', { params: { hotelId: userStore.hotelId } })
     roomTypeOptions.value = res.data
   } catch (e) { console.error(e) }
 }
@@ -177,7 +180,7 @@ const fetchData = async () => {
   loading.value = true
   try {
     const res = await request.get('/v1/price-plans', {
-      params: { hotelId: 1, page: queryParams.page, size: queryParams.size }
+      params: { hotelId: userStore.hotelId, page: queryParams.page, size: queryParams.size }
     })
     tableData.value = res.data.records
     total.value = res.data.total
@@ -250,7 +253,7 @@ const handleSubmit = async () => {
     }
     submitLoading.value = true
     try {
-      const payload = { ...formData, hotelId: 1 }
+      const payload = { ...formData, hotelId: userStore.hotelId }
       if (isEdit.value) {
         await request.put('/v1/price-plans/' + editId.value, payload)
       } else {

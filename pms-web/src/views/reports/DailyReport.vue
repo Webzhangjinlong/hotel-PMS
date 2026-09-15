@@ -155,11 +155,14 @@
 </template>
 
 <script setup>
+
+import { useUserStore } from '@/stores/user'
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Download } from '@element-plus/icons-vue'
 import { getNightAuditDetail } from '@/api/night-audit'
 import request from '@/utils/request'
+const userStore = useUserStore()
 
 const loading = ref(false)
 const selectedDate = ref(new Date().toISOString().split('T')[0])
@@ -199,7 +202,7 @@ const loadReport = async () => {
     // 查询指定日期的夜审记录
     const result = await request.get('/v1/night-audit/list', {
       params: {
-        hotelId: 1,
+        hotelId: userStore.hotelId,
         startDate: selectedDate.value,
         endDate: selectedDate.value,
         pageNum: 1,
@@ -237,7 +240,7 @@ const loadTrendData = async () => {
     
     const result = await request.get('/v1/night-audit/list', {
       params: {
-        hotelId: 1,
+        hotelId: userStore.hotelId,
         startDate: startDate.toISOString().split('T')[0],
         endDate: endDate.toISOString().split('T')[0],
         pageNum: 1,

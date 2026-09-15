@@ -163,9 +163,9 @@ import { Download } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
 import { useUserStore } from '@/stores/user'
 import { getFullReport } from '@/api/report'
+const userStore = useUserStore()
 
 // 用户状态（取当前登录酒店 ID）
-const userStore = useUserStore()
 
 // 查询参数
 const queryParams = reactive({

@@ -226,18 +226,21 @@
 </template>
 
 <script setup>
+
+import { useUserStore } from '@/stores/user'
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { collectDeposit, refundDeposit, getDepositList, getDepositById, deductDepositForRoomFee } from '@/api/deposit'
 import { getGuestList } from '@/api/guest'
 import { getStayList } from '@/api/stay'
+const userStore = useUserStore()
 
 // 查询参数
 const queryParams = reactive({
   page: 1,
   size: 10,
-  hotelId: 1, // 默认酒店ID
+  hotelId: userStore.hotelId, // 默认酒店ID
   status: '',
   guestName: '',
   roomNo: '',
@@ -256,7 +259,7 @@ const guestList = ref([])
 const collectDialogVisible = ref(false)
 const collectFormRef = ref(null)
 const collectForm = reactive({
-  hotelId: 1, // 默认酒店ID
+  hotelId: userStore.hotelId, // 默认酒店ID
   stayId: null, // 入住单ID
   guestId: null,
   phone: '',
@@ -384,7 +387,7 @@ const handleReset = () => {
 // 显示收取押金对话框
 const showCollectDialog = () => {
   Object.assign(collectForm, {
-    hotelId: 1, // 默认酒店ID
+    hotelId: userStore.hotelId, // 默认酒店ID
     stayId: null, // 入住单ID
     guestId: null,
     guestName: '',

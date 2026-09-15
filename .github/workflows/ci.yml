@@ -54,6 +54,15 @@ jobs:
           PMS_DB_PASSWORD: postgres
         run: mvn -B -pl pms-api -am verify
 
+      - name: Check no hardcoded hotelId backend (R10 多酒店隔离)
+        working-directory: ./
+        run: |
+          if grep -rnE "hotelId[[:space:]]*=[[:space:]]*1L" --include="*.java" pms-common pms-dao pms-service pms-api; then
+            echo "::error::检测到后端硬编码 hotelId=1L（R10 多酒店隔离），必须改用 UserContext.getHotelId()"
+            exit 1
+          fi
+          echo "OK: 后端无硬编码 hotelId=1L"
+
       - name: Upload surefire reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -72,6 +81,15 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: pms-web/package-lock.json
+
+      - name: Check no hardcoded hotelId (R10 多酒店隔离)
+        working-directory: pms-web
+        run: |
+          if grep -rnE "hotelId[[:space:]]*[:=][[:space:]]*1([^0-9]|$)" src --include="*.vue" --include="*.js"; then
+            echo "::error::检测到前端硬编码 hotelId=1（R10 多酒店隔离），必须改用 userStore.hotelId"
+            exit 1
+          fi
+          echo "OK: 前端无硬编码 hotelId"
 
       - name: Install & build
         working-directory: pms-web

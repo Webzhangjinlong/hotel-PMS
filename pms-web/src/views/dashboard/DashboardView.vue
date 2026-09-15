@@ -191,6 +191,8 @@
 </template>
 
 <script setup>
+
+import { useUserStore } from '@/stores/user'
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -198,9 +200,10 @@ import { Calendar, CircleCheck, House, Money, Clock, Brush } from '@element-plus
 import request from '@/utils/request'
 import RoomSelectDialog from '../reservation/RoomSelectDialog.vue'
 import { getDashboardStats, getTodayRevenue, getRevenueTrend, getTodayCheckins, getTodayDepartures } from '@/api/dashboard'
+const userStore = useUserStore()
 
 const router = useRouter()
-const hotelId = 1
+const hotelId = userStore.hotelId
 
 // ========== 数据 ==========
 const stats = ref({})
@@ -245,7 +248,7 @@ const planDailyPrice = ref(null)
 // 预订弹窗
 const reservationDialogVisible = ref(false)
 const reservationFormRef = ref(null)
-const reservationForm = reactive({ guestName: '', guestPhone: '', roomTypeId: null, roomId: null, pricePlanId: null, dailyPrice: null, checkInDate: '', checkOutDate: '', source: 'WALK_IN', hotelId: 1 })
+const reservationForm = reactive({ guestName: '', guestPhone: '', roomTypeId: null, roomId: null, pricePlanId: null, dailyPrice: null, checkInDate: '', checkOutDate: '', source: 'WALK_IN', hotelId: userStore.hotelId })
 const reservationRules = {
   guestName: [{ required: true, message: '请输入客人姓名', trigger: 'blur' }],
   guestPhone: [{ required: true, message: '请输入客人电话', trigger: 'blur' }],
@@ -257,7 +260,7 @@ const reservationRules = {
 // 入住弹窗
 const walkInDialogVisible = ref(false)
 const walkInFormRef = ref(null)
-const walkInForm = reactive({ roomTypeId: null, roomId: null, guestName: '', guestPhone: '', guestIdNo: '', guestGender: '', pricePlanId: null, dailyPrice: null, expectedCheckOutDate: '', hotelId: 1 })
+const walkInForm = reactive({ roomTypeId: null, roomId: null, guestName: '', guestPhone: '', guestIdNo: '', guestGender: '', pricePlanId: null, dailyPrice: null, expectedCheckOutDate: '', hotelId: userStore.hotelId })
 const walkInRules = {
   roomTypeId: [{ required: true, message: '请选择房型', trigger: 'change' }],
   roomId: [{ required: true, message: '请选择房间', trigger: 'change' }],

@@ -121,9 +121,12 @@
 </template>
 
 <script setup>
+
+import { useUserStore } from '@/stores/user'
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { archiveNightAuditData, getArchiveList, getArchiveStats } from '@/api/night-audit-archive'
+const userStore = useUserStore()
 
 const archiveDate = ref('')
 const archiveStats = ref({})
@@ -210,7 +213,7 @@ const loadArchiveList = async () => {
   listLoading.value = true
   try {
     const params = {
-      hotelId: 1,
+      hotelId: userStore.hotelId,
       pageNum: pagination.value.pageNum,
       pageSize: pagination.value.pageSize
     }

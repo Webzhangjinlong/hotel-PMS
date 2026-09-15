@@ -178,6 +178,8 @@
 </template>
 
 <script setup>
+
+import { useUserStore } from '@/stores/user'
 /**
  * 房间预订日历组件
  * 展示N天内房间的预订和排房情况，支持快速预订和冲突检查
@@ -186,6 +188,7 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import request from '@/utils/request'
+const userStore = useUserStore()
 
 // ========== 状态变量 ==========
 
@@ -256,7 +259,7 @@ const quickBookingForm = reactive({
   guestPhone: '',
   pricePlanId: null,
   dailyPrice: null,
-  hotelId: 1
+  hotelId: userStore.hotelId
 })
 
 /** 快速预订表单验证规则 */
@@ -429,7 +432,7 @@ const handleQuickBookingPPChange = async (planId) => {
   if (planId && quickBookingForm.roomTypeId) {
     try {
       const res = await request.get('/v1/prices/query', { 
-        params: { hotelId: 1, roomTypeId: quickBookingForm.roomTypeId, date: new Date().toISOString().split('T')[0] } 
+        params: { hotelId: userStore.hotelId, roomTypeId: quickBookingForm.roomTypeId, date: new Date().toISOString().split('T')[0] } 
       })
       if (res.data?.price) {
         planDailyPrice.value = res.data.price
@@ -489,7 +492,7 @@ const openQuickBooking = (room, date) => {
     guestPhone: '',
     pricePlanId: null,
     dailyPrice: room.basePrice,
-    hotelId: 1
+    hotelId: userStore.hotelId
   })
   planDailyPrice.value = null
   quickBookingVisible.value = true
@@ -578,7 +581,7 @@ const loadCalendarData = async () => {
   loading.value = true
   try {
     const params = {
-      hotelId: 1,
+      hotelId: userStore.hotelId,
       startDate: startDate.value,
       days: days.value
     }
@@ -601,9 +604,9 @@ const loadCalendarData = async () => {
 const loadFilterOptions = async () => {
   try {
     const [floorRes, rtRes, ppRes] = await Promise.all([
-      request.get('/v1/floors/list', { params: { hotelId: 1 } }),
-      request.get('/v1/room-types', { params: { hotelId: 1 } }),
-      request.get('/v1/price-plans/list', { params: { hotelId: 1 } })
+      request.get('/v1/floors/list', { params: { hotelId: userStore.hotelId } }),
+      request.get('/v1/room-types', { params: { hotelId: userStore.hotelId } }),
+      request.get('/v1/price-plans/list', { params: { hotelId: userStore.hotelId } })
     ])
     floorOptions.value = floorRes.data || []
     roomTypeOptions.value = rtRes.data?.records || []

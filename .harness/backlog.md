@@ -12,7 +12,7 @@
 | V-03 | 报表服务 hotel_id 硬编码治理 | `ReportServiceImpl` 8 处 `1L` 改为 hotelId 参数（12 个报表方法），Controller 从 UserContext 传入 | R10 | P0 | ✅ 已完成 |
 | V-04 | 报表服务跨域 Mapper 调用收敛 | DepositMapper/MemberMapper/SysShiftMapper 等核验为死代码，已删除 | R11 | P1 | ✅ 已完成（实为死代码） |
 | V-05 | 清理源码目录 `.bak`/`.backup` 文件 | 确认无用后删除（实际 70 个），.gitignore 已防护 | DO NOT | P1 | ✅ 已完成 |
-| V-06 | 前端硬编码 hotelId 治理 | `EnhancedReport.vue` queryParams.hotelId=1 改为 user store 取值 | R10 | P0 | ✅ 已完成 |
+| V-06 | 前端硬编码 hotelId 治理 | 全仓 60 处/20 个 Vue 文件全部改为 userStore.hotelId（审计发现原登记仅 1 处，实际规模 60 处），并补 CI grep 门禁（V-08） | R10 | P0 | ✅ 已完成 |
 | V-07 | 前端缺失 API 导出修复 | report.js 补 `getFullReport`（→ /api/v1/metrics/full-report） | CI | 已完成 | ✅ 已修复 |
 
 ## 功能开发（参考 doc/05-功能开发进度.md 短期计划）

@@ -279,12 +279,15 @@
 </template>
 
 <script setup>
+
+import { useUserStore } from '@/stores/user'
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Refresh, Calendar } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 import RoomSelectDialog from './RoomSelectDialog.vue'
+const userStore = useUserStore()
 
 const router = useRouter()
 
@@ -299,7 +302,7 @@ const dateRange = ref(null)
 const queryParams = reactive({
   page: 1,
   size: 10,
-  hotelId: 1,
+  hotelId: userStore.hotelId,
   status: null,
   excludeStatus: 'CHECKED_IN',
   reservationNo: '',
@@ -377,7 +380,7 @@ const fetchData = async () => {
 // ========== 获取房型选项 ==========
 const fetchRoomTypeOptions = async () => {
   try {
-    const res = await request.get('/v1/room-types/options', { params: { hotelId: 1 } })
+    const res = await request.get('/v1/room-types/options', { params: { hotelId: userStore.hotelId } })
     roomTypeOptions.value = res.data
   } catch (error) {
     console.error('获取房型选项失败', error)
@@ -428,7 +431,7 @@ const handlePricePlanChange = async (planId) => {
 // ========== 获取房价码选项 ==========
 const fetchPricePlanOptions = async () => {
   try {
-    const res = await request.get('/v1/price-plans/list', { params: { hotelId: 1 } })
+    const res = await request.get('/v1/price-plans/list', { params: { hotelId: userStore.hotelId } })
     pricePlanOptions.value = res.data || []
   } catch (error) {
     console.error('获取房价码选项失败:', error)
@@ -440,7 +443,7 @@ const fetchTodayArrivalsCount = async () => {
   try {
     const res = await request.get('/v1/reservations', {
       params: {
-        hotelId: 1,
+        hotelId: userStore.hotelId,
         status: 'CONFIRMED',
         checkInDateStart: new Date().toISOString().split('T')[0],
         checkInDateEnd: new Date().toISOString().split('T')[0],

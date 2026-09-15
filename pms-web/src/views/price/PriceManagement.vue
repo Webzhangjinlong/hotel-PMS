@@ -354,6 +354,8 @@
 </template>
 
 <script setup>
+
+import { useUserStore } from '@/stores/user'
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { 
@@ -361,6 +363,7 @@ import {
   ArrowLeft, ArrowRight, Star 
 } from '@element-plus/icons-vue'
 import request from '@/utils/request'
+const userStore = useUserStore()
 
 // ========== 筛选参数 ==========
 const filterParams = reactive({
@@ -444,7 +447,7 @@ const batchDialogVisible = ref(false)
 const batchSubmitLoading = ref(false)
 const batchFormRef = ref(null)
 const batchFormData = reactive({
-  hotelId: 1,
+  hotelId: userStore.hotelId,
   roomTypeIds: [],
   dateRange: [],
   adjustType: 'FIXED',
@@ -461,7 +464,7 @@ const initDialogVisible = ref(false)
 const initSubmitLoading = ref(false)
 const initFormRef = ref(null)
 const initFormData = reactive({
-  hotelId: 1,
+  hotelId: userStore.hotelId,
   roomTypeId: null,
   dateRange: []
 })
@@ -473,7 +476,7 @@ const initFormRules = {
 // ========== 方法 ==========
 const fetchRoomTypes = async () => {
   try {
-    const res = await request.get('/v1/room-types/list', { params: { hotelId: 1 } })
+    const res = await request.get('/v1/room-types/list', { params: { hotelId: userStore.hotelId } })
     roomTypeOptions.value = res.data
   } catch (error) {
     console.error('获取房型列表失败', error)
@@ -485,7 +488,7 @@ const fetchCalendarData = async () => {
   try {
     const res = await request.get('/v1/prices/calendar', {
       params: {
-        hotelId: 1,
+        hotelId: userStore.hotelId,
         roomTypeId: filterParams.roomTypeId,
         year: calendarYear.value,
         month: calendarMonth.value
@@ -506,7 +509,7 @@ const fetchTableData = async () => {
   try {
     const res = await request.get('/v1/prices/list', {
       params: {
-        hotelId: 1,
+        hotelId: userStore.hotelId,
         roomTypeId: filterParams.roomTypeId,
         month: filterParams.month,
         page: tableParams.page,
@@ -565,7 +568,7 @@ const handleNextMonth = () => {
 }
 
 const handleDayClick = (day) => {
-  priceFormData.hotelId = 1
+  priceFormData.hotelId = userStore.hotelId
   priceFormData.roomTypeId = filterParams.roomTypeId
   priceFormData.roomTypeName = currentRoomType.value?.name || ''
   priceFormData.priceDate = day.date
@@ -610,7 +613,7 @@ const handlePriceDialogClose = () => {
 }
 
 const handleBatchAdjust = () => {
-  batchFormData.hotelId = 1
+  batchFormData.hotelId = userStore.hotelId
   batchFormData.roomTypeIds = filterParams.roomTypeId ? [filterParams.roomTypeId] : []
   batchFormData.dateRange = []
   batchFormData.adjustType = 'FIXED'
@@ -648,7 +651,7 @@ const handleBatchDialogClose = () => {
 }
 
 const handleInitPrices = () => {
-  initFormData.hotelId = 1
+  initFormData.hotelId = userStore.hotelId
   initFormData.roomTypeId = filterParams.roomTypeId
   initFormData.dateRange = []
   initDialogVisible.value = true

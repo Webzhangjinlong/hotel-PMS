@@ -363,6 +363,8 @@
 </template>
 
 <script setup>
+
+import { useUserStore } from '@/stores/user'
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -371,6 +373,7 @@ import {
 } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 import { getStayList, checkOut } from '@/api/stay'
+const userStore = useUserStore()
 
 const route = useRoute()
   
@@ -693,7 +696,7 @@ const getQuickActions = (status) => {
 const loadDashboard = async () => {
   loading.value = true
   try {
-    const params = { hotelId: 1 }
+    const params = { hotelId: userStore.hotelId }
     if (selectedFloor.value) {
       params.floorId = selectedFloor.value
     }
@@ -714,7 +717,7 @@ const loadDashboard = async () => {
 // 加载楼层选项
 const loadFloorOptions = async () => {
   try {
-    const res = await request.get('/v1/floors/list', { params: { hotelId: 1 } })
+    const res = await request.get('/v1/floors/list', { params: { hotelId: userStore.hotelId } })
     floorOptions.value = res.data
   } catch (error) {
     console.error('加载楼层列表失败:', error)
@@ -861,7 +864,7 @@ const handleQuickAction = async (command, room) => {
   // 获取房型列表
   const fetchRoomTypes = async () => {
     try {
-      const params = { hotelId: 1 }
+      const params = { hotelId: userStore.hotelId }
       const res = await request.get('/v1/room-types', { params })
       roomTypeOptions.value = res.data?.records || []
     } catch (error) {
@@ -877,7 +880,7 @@ const handleQuickAction = async (command, room) => {
         if (walkInForm.roomId) {
           const roomRes = await request.get('/v1/rooms/' + walkInForm.roomId)
           if (roomRes.data?.roomTypeId) {
-            const res = await request.get('/v1/prices/query', { params: { hotelId: 1, roomTypeId: roomRes.data.roomTypeId, date: new Date().toISOString().split('T')[0] } })
+            const res = await request.get('/v1/prices/query', { params: { hotelId: userStore.hotelId, roomTypeId: roomRes.data.roomTypeId, date: new Date().toISOString().split('T')[0] } })
             if (res.data?.price) {
               walkInForm.dailyPrice = res.data.price
             }
@@ -900,7 +903,7 @@ const handleQuickAction = async (command, room) => {
   // 获取房价码列表
   const fetchPricePlans = async () => {
     try {
-      const params = { hotelId: 1, status: 'ACTIVE' }
+      const params = { hotelId: userStore.hotelId, status: 'ACTIVE' }
       const res = await request.get('/v1/price-plans', { params })
       pricePlanOptions.value = res.data?.records || []
     } catch (error) {
@@ -916,7 +919,7 @@ const handleQuickAction = async (command, room) => {
         return
       }
       try {
-        const params = { hotelId: 1, status: 'AVAILABLE', roomTypeId }
+        const params = { hotelId: userStore.hotelId, status: 'AVAILABLE', roomTypeId }
         const res = await request.get('/v1/rooms', { params })
         availableRooms.value = res.data?.records || []
         // 如果传入了当前房间ID，且不在列表中，添加到列表
@@ -965,7 +968,7 @@ const handleQuickAction = async (command, room) => {
     if (!valid) return
     submitLoading.value = true
     try {
-      const res = await request.post('/v1/stays/walk-in', { ...walkInForm, hotelId: 1 })
+      const res = await request.post('/v1/stays/walk-in', { ...walkInForm, hotelId: userStore.hotelId })
       ElMessage.success('入住成功')
       walkInDialogVisible.value = false
       drawerVisible.value = false // 关闭房间详情弹框
@@ -993,7 +996,7 @@ const handleQuickAction = async (command, room) => {
       extendForm.checkInTime = stay.checkInTime
       extendForm.checkOutTime = stay.checkOutTime || ''
       extendForm.roomId = room.roomId
-      extendForm.hotelId = 1
+      extendForm.hotelId = userStore.hotelId
       extendForm.roomTypeId = room.roomTypeId
       extendForm.newCheckOutDate = ''
       extendPriceDetails.value = []
@@ -1083,7 +1086,7 @@ const handleQuickAction = async (command, room) => {
       changeRoomForm.amountAdjustment = 0
       
       // 加载可用房间列表
-      const roomRes = await request.get('/v1/rooms', { params: { hotelId: 1, status: 'AVAILABLE', roomTypeId: room.roomTypeId } })
+      const roomRes = await request.get('/v1/rooms', { params: { hotelId: userStore.hotelId, status: 'AVAILABLE', roomTypeId: room.roomTypeId } })
       changeAvailableRooms.value = (roomRes.data?.records || []).filter(r => r.id !== room.roomId)
       changeRoomDialogVisible.value = true
     } catch (error) {
