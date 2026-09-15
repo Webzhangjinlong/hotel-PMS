@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hotel.pms.dao.mapper.RoomPriceMapper">
+    
+    <!-- 批量插入或更新房价 -->
+    <insert id="batchInsertOrUpdate" parameterType="java.util.List">
+        INSERT INTO room_price (hotel_id, room_type_id, price_date, price, status, created_at, updated_at, deleted, version)
+        VALUES
+        <foreach collection="prices" item="item" separator=",">
+            (#{item.hotelId}, #{item.roomTypeId}, #{item.priceDate}, #{item.price}, #{item.status}, NOW(), NOW(), false, 0)
+        </foreach>
+        ON CONFLICT (hotel_id, room_type_id, price_date) 
+        DO UPDATE SET 
+            price = EXCLUDED.price,
+            status = EXCLUDED.status,
+            updated_at = NOW(),
+            version = room_price.version + 1
+    </insert>
+    
+</mapper>

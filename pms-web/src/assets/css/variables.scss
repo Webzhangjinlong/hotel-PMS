@@ -1,0 +1,63 @@
+﻿// 全局样式变量
+$primary-color: #67c23a;
+$success-color: #67c23a;
+$warning-color: #e6a23c;
+$danger-color: #f56c6c;
+$info-color: #909399;
+
+// 文本颜色
+$text-primary: #303133;
+$text-regular: #606266;
+$text-secondary: #909399;
+$text-placeholder: #c0c4cc;
+
+// 边框颜色
+$border-color: #dcdfe6;
+$border-light: #e4e7ed;
+
+// 背景颜色
+$bg-color: #f5f7fa;
+$bg-white: #ffffff;
+
+// 字体大小
+$font-size-large: 18px;
+$font-size-base: 14px;
+$font-size-small: 12px;
+
+// 间距
+$spacing-base: 20px;
+$spacing-small: 10px;
+
+// 侧边栏
+$sidebar-bg-start: #0f0c29;
+$sidebar-bg-mid: #302b63;
+$sidebar-bg-end: #24243e;
+$sidebar-text: rgba(255, 255, 255, 0.7);
+$sidebar-text-active: #67c23a;
+$sidebar-hover-bg: rgba(255, 255, 255, 0.08);
+$sidebar-active-bg: rgba(103, 194, 58, 0.2);
+$sidebar-divider: rgba(255, 255, 255, 0.08);
+$sidebar-glow: rgba(103, 194, 58, 0.3);
+
+// 全局样式重置
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  font-size: $font-size-base;
+  color: $text-primary;
+  background-color: $bg-color;
+}
+
+a {
+  color: $primary-color;
+  text-decoration: none;
+  
+  &:hover {
+    color: lighten($primary-color, 10%);
+  }
+}

@@ -1,0 +1,1174 @@
+package com.hotel.pms.service.stay;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.hotel.pms.common.constant.FolioConstants;
+import com.hotel.pms.common.constant.RoomConstants;
+import com.hotel.pms.common.constant.ReservationConstants;
+import com.hotel.pms.common.constant.StayConstants;
+import com.hotel.pms.common.dto.*;
+import com.hotel.pms.common.dto.RoomPriceVO;
+import com.hotel.pms.common.exception.BusinessException;
+import com.hotel.pms.common.result.PageResponse;
+import com.hotel.pms.common.result.ResultCode;
+import com.hotel.pms.dao.entity.*;
+import com.hotel.pms.dao.entity.TeamReservation;
+import com.hotel.pms.dao.mapper.*;
+import com.hotel.pms.service.config.BaseService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+/**
+ * 入住服务类
+ * <p>
+ * 负责入住的业务逻辑处理
+ * </p>
+ *
+ * @author PMS开发团队
+ * @since 1.0.0
+ */
+@Slf4j
+@Service
+public class StayService extends BaseService<Stay, StayMapper> {
+
+    /** 日期鏍煎紡 */
+    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd");
+
+    @Autowired
+    private HotelMapper hotelMapper;
+
+    @Autowired
+    private RoomMapper roomMapper;
+
+    @Autowired
+    private RoomTypeMapper roomTypeMapper;
+
+    @Autowired
+    private ReservationMapper reservationMapper;
+
+    @Autowired
+    private GuestMapper guestMapper;
+
+    @Autowired
+    private FolioMapper folioMapper;
+
+    @Autowired
+    private TeamReservationMapper teamReservationMapper;
+
+    @Autowired
+    private TeamReservationRoomMapper teamReservationRoomMapper;
+
+    @Autowired
+    private TeamFolioMapper teamFolioMapper;
+
+    @Autowired
+    private com.hotel.pms.service.price.RoomPriceService roomPriceService;
+
+    @Autowired
+    private FinTransactionMapper finTransactionMapper;
+    /**
+     * 鍒嗛〉查询入住鍒楄〃
+     *
+     * @param queryDTO 查询鏉′欢
+     * @return 鍒嗛〉缁撴灉
+     */
+    public PageResponse<StayVO> pageList(StayQueryDTO queryDTO) {
+        // 鏋勫缓查询鏉′欢
+        LambdaQueryWrapper<Stay> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(queryDTO.getHotelId() != null, Stay::getHotelId, queryDTO.getHotelId())
+               .eq(StringUtils.hasText(queryDTO.getStatus()), Stay::getStatus, queryDTO.getStatus())
+               .eq(StringUtils.hasText(queryDTO.getCheckInType()), Stay::getCheckInType, queryDTO.getCheckInType())
+               .orderByDesc(Stay::getCreatedAt);
+
+        // 日期鏉′欢闇€瑕佸崟鐙鐞嗭紝閬垮厤绌烘寚閽?
+        if (queryDTO.getCheckInDateStart() != null) {
+            wrapper.ge(Stay::getCheckInTime, queryDTO.getCheckInDateStart().atStartOfDay());
+        }
+        if (queryDTO.getCheckInDateEnd() != null) {
+            wrapper.le(Stay::getCheckInTime, queryDTO.getCheckInDateEnd().atTime(LocalTime.MAX));
+        }
+
+        // 鎵ц鍒嗛〉查询
+        Page<Stay> page = new Page<>(queryDTO.getPage(), queryDTO.getSize());
+        IPage<Stay> result = mapper.selectPage(page, wrapper);
+
+        // 杞崲涓篤O
+        List<StayVO> voList = result.getRecords().stream()
+                .map(this::convertToVO)
+                .collect(Collectors.toList());
+
+        return new PageResponse<>(voList, result.getTotal(),
+                (int) result.getCurrent(), (int) result.getSize());
+    }
+
+    /**
+     * 鏍规嵁ID查询入住璇︽儏
+     *
+     * @param id 入住鍗旾D
+     * @return 入住信息
+     */
+    public StayVO getById(Long id) {
+        Stay stay = mapper.selectById(id);
+        if (stay == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "入住单不存在");
+        }
+        return convertToVO(stay);
+    }
+
+
+    /**
+     * 分页查询团队入住汇总
+     *
+     * @param queryDTO 查询条件
+     * @return 团队汇总分页结果
+     */
+    public PageResponse<TeamStaySummaryVO> pageTeamSummary(StayQueryDTO queryDTO) {
+        // 构建查询条件 - 查询团队入住单
+        LambdaQueryWrapper<Stay> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(queryDTO.getHotelId() != null, Stay::getHotelId, queryDTO.getHotelId())
+               .eq(Stay::getCheckInType, "TEAM")
+               .isNotNull(Stay::getTeamReservationId)
+               .orderByDesc(Stay::getCreatedAt);
+
+        // 日期条件
+        if (queryDTO.getCheckInDateStart() != null) {
+            wrapper.ge(Stay::getCheckInTime, queryDTO.getCheckInDateStart().atStartOfDay());
+        }
+        if (queryDTO.getCheckInDateEnd() != null) {
+            wrapper.le(Stay::getCheckInTime, queryDTO.getCheckInDateEnd().atTime(LocalTime.MAX));
+        }
+
+        // 查询所有符合条件的团队入住单
+        List<Stay> allTeamStays = mapper.selectList(wrapper);
+
+        // 按团队预订ID分组
+        Map<Long, List<Stay>> groupedByTeam = allTeamStays.stream()
+                .filter(stay -> stay.getTeamReservationId() != null)
+                .collect(Collectors.groupingBy(Stay::getTeamReservationId));
+
+        // 转换为团队汇总VO列表
+        List<TeamStaySummaryVO> allTeamSummaries = groupedByTeam.entrySet().stream()
+                .map(entry -> {
+                    Long teamReservationId = entry.getKey();
+                    List<Stay> teamStays = entry.getValue();
+
+                    // 查询团队预订信息
+                    TeamReservation teamReservation = teamReservationMapper.selectById(teamReservationId);
+
+                    // 计算汇总信息
+                    BigDecimal totalAmount = teamStays.stream()
+                            .map(Stay::getTotalAmount)
+                            .filter(java.util.Objects::nonNull)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                    BigDecimal paidAmount = teamStays.stream()
+                            .map(Stay::getPaidAmount)
+                            .filter(java.util.Objects::nonNull)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                    // 转换入住单为VO
+                    List<StayVO> stayVOs = teamStays.stream()
+                            .map(this::convertToVO)
+                            .collect(Collectors.toList());
+
+                    // 计算支付状态
+                    String paymentStatus = "UNPAID";
+                    if (totalAmount.compareTo(BigDecimal.ZERO) > 0) {
+                        if (paidAmount.compareTo(totalAmount) >= 0) {
+                            paymentStatus = "PAID";
+                        } else if (paidAmount.compareTo(BigDecimal.ZERO) > 0) {
+                            paymentStatus = "PARTIAL";
+                        }
+                    }
+
+                    return TeamStaySummaryVO.builder()
+                            .teamReservationId(teamReservationId)
+                            .teamReservationNo(teamReservation != null ? teamReservation.getTeamReservationNo() : "")
+                            .teamName(teamReservation != null ? teamReservation.getTeamName() : "")
+                            .settlementType(teamReservation != null ? teamReservation.getSettlementType() : "")
+                            .contactName(teamReservation != null ? teamReservation.getContactName() : "")
+                            .contactPhone(teamReservation != null ? teamReservation.getContactPhone() : "")
+                            .source(teamReservation != null ? teamReservation.getSource() : "")
+                            .totalRooms(teamStays.size())
+                            .totalAmount(totalAmount)
+                            .paidAmount(paidAmount)
+                            .status(teamStays.stream().allMatch(s -> "CHECKED_OUT".equals(s.getStatus())) ? "CHECKED_OUT" : "CHECKED_IN")
+                            .paymentStatus(paymentStatus)
+                            .stays(stayVOs)
+                            .build();
+                })
+                .collect(Collectors.toList());
+
+        // 手动分页
+        int total = allTeamSummaries.size();
+        int page = queryDTO.getPage();
+        int size = queryDTO.getSize();
+        int fromIndex = (page - 1) * size;
+        int toIndex = Math.min(fromIndex + size, total);
+
+        List<TeamStaySummaryVO> pageRecords = fromIndex < total
+                ? allTeamSummaries.subList(fromIndex, toIndex)
+                : new java.util.ArrayList<>();
+
+        return new PageResponse<>(pageRecords, total, page, size);
+    }
+    /**
+     * 散客入住
+     *
+     * @param dto 散客入住鍙傛暟
+     * @return 入住信息
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public StayVO walkInCheckIn(StayCreateDTO dto) {
+        // 1. 验证酒店存在
+        Hotel hotel = hotelMapper.selectById(dto.getHotelId());
+        if (hotel == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "酒店不存在");
+        }
+
+        // 2. 验证房间存在且状态为AVAILABLE
+        Room room = roomMapper.selectById(dto.getRoomId());
+        if (room == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "房间不存在");
+        }
+        if (!RoomConstants.STATUS_AVAILABLE.equals(room.getStatus())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "房间鐘舵€佷笉鏄┖闂诧紝鏃犳硶入住");
+        }
+
+        // 3. 创建瀹汉记录
+        Guest guest = findOrCreateGuest(dto.getHotelId(), dto.getGuestName(),
+                dto.getGuestIdNo(), dto.getGuestPhone(), dto.getGuestGender());
+
+        // 4. 计算入住天数
+        long days = ChronoUnit.DAYS.between(LocalDate.now(), dto.getExpectedCheckOutDate());
+        if (days <= 0) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "离店日期必须晚于入住日期");
+        }
+
+        // 5. 计算房费
+        BigDecimal totalAmount = calculateStayAmount(dto.getHotelId(), room.getRoomTypeId(), LocalDate.now(), dto.getExpectedCheckOutDate(), dto.getPricePlanId());
+
+        // 7. 创建入住单
+        Stay stay = new Stay();
+        stay.setHotelId(dto.getHotelId());
+        stay.setStayNo(generateStayNo(dto.getHotelId()));
+        stay.setRoomId(dto.getRoomId());
+        stay.setGuestId(guest.getId());
+        stay.setCheckInTime(LocalDateTime.now());
+        stay.setCheckOutTime(dto.getExpectedCheckOutDate().atTime(12, 0));
+        stay.setStatus(StayConstants.STATUS_CHECKED_IN);
+        stay.setTotalAmount(totalAmount);
+        stay.setPaidAmount(BigDecimal.ZERO);
+        stay.setCheckInType("WALK_IN");
+        stay.setPricePlanId(dto.getPricePlanId());
+        mapper.insert(stay);
+
+        // 8. 更新房间状态为OCCUPIED
+        room.setStatus(RoomConstants.STATUS_OCCUPIED);
+        roomMapper.updateById(room);
+
+        // 8. 创建账务单
+        createFolio(stay);
+
+        log.info("散客入住成功锛歴tayId={}, stayNo={}, roomId={}", stay.getId(), stay.getStayNo(), dto.getRoomId());
+
+        return convertToVO(stay);
+    }
+
+    /**
+     * 预订入住
+     *
+     * @param dto 预订入住鍙傛暟
+     * @return 入住信息
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public StayVO reservationCheckIn(CheckInDTO dto) {
+        // 1. 验证预订瀛樺湪
+        Reservation reservation = reservationMapper.selectById(dto.getReservationId());
+        if (reservation == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "预订不存在");
+        }
+
+        // 2. 验证预订状态
+        if (!ReservationConstants.STATUS_CONFIRMED.equals(reservation.getStatus())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "预订状态不是已确认，无法入住");
+        }
+
+        // 3. 验证房间
+        Room room = roomMapper.selectById(dto.getRoomId());
+        if (room == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "房间不存在");
+        }
+        if (!RoomConstants.STATUS_AVAILABLE.equals(room.getStatus())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "房间鐘舵€佷笉鏄┖闂诧紝鏃犳硶入住");
+        }
+
+        // 4. 创建瀹汉记录
+        Guest guest = findOrCreateGuest(reservation.getHotelId(), dto.getGuestName(),
+                dto.getGuestIdNo(), dto.getGuestPhone(), dto.getGuestGender());
+
+        // 5. 妫€鏌ユ埧闂存槸鍚︽湁鍦ㄤ綇记录
+        LambdaQueryWrapper<Stay> stayCheckWrapper = new LambdaQueryWrapper<>();
+        stayCheckWrapper.eq(Stay::getRoomId, dto.getRoomId())
+                       .eq(Stay::getStatus, StayConstants.STATUS_CHECKED_IN);
+        Long existingStayCount = mapper.selectCount(stayCheckWrapper);
+        if (existingStayCount > 0) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "璇ユ埧闂村凡鏈夊湪浣忓浜猴紝鏃犳硶入住");
+        }
+
+        // 6. 浣跨敤预订金额锛堝凡鍖呭惈鎴夸环鐮佷环鏍硷級
+        BigDecimal totalAmount = reservation.getTotalAmount();
+        if (totalAmount == null || totalAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            totalAmount = calculateStayAmount(reservation.getHotelId(), room.getRoomTypeId(),
+                    reservation.getCheckInDate(), reservation.getCheckOutDate(), reservation.getPricePlanId());
+        }
+
+        // 7. 创建入住单
+        Stay stay = new Stay();
+        stay.setHotelId(reservation.getHotelId());
+        stay.setStayNo(generateStayNo(reservation.getHotelId()));
+        stay.setReservationId(reservation.getId());
+        stay.setRoomId(dto.getRoomId());
+        stay.setGuestId(guest.getId());
+        stay.setCheckInTime(LocalDateTime.now());
+        stay.setCheckOutTime(reservation.getCheckOutDate().atTime(12, 0));
+        stay.setStatus(StayConstants.STATUS_CHECKED_IN);
+        stay.setTotalAmount(totalAmount);
+        stay.setPaidAmount(BigDecimal.ZERO);
+        stay.setCheckInType("RESERVATION");
+        mapper.insert(stay);
+
+        // 8. 更新房间状态
+        room.setStatus(RoomConstants.STATUS_OCCUPIED);
+        roomMapper.updateById(room);
+
+        // 9. 更新预订状态
+        reservation.setStatus(ReservationConstants.STATUS_CHECKED_IN);
+        reservation.setRoomId(dto.getRoomId());
+        reservationMapper.updateById(reservation);
+
+        // 9. 创建账务单
+        createFolio(stay);
+
+        log.info("预订入住成功锛歴tayId={}, stayNo={}, reservationId={}", stay.getId(), stay.getStayNo(), reservation.getId());
+
+        return convertToVO(stay);
+    }
+
+    /**
+     * 查询今日入住列表
+     *
+     * @param hotelId 酒店ID
+     * @return 今日入住列表
+     */
+    public List<StayVO> getTodayCheckIns(Long hotelId) {
+        LocalDate today = LocalDate.now();
+        LambdaQueryWrapper<Stay> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Stay::getHotelId, hotelId)
+               .ge(Stay::getCheckInTime, today.atStartOfDay())
+               .le(Stay::getCheckInTime, today.atTime(LocalTime.MAX))
+               .orderByDesc(Stay::getCreatedAt);
+
+        List<Stay> list = mapper.selectList(wrapper);
+        return list.stream()
+                .map(this::convertToVO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 缁綇
+     *
+     * @param dto 缁綇鍙傛暟
+     * @return 缁綇信息
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public StayExtendVO extendStay(StayExtendDTO dto) {
+        // 1. 验证入住单
+        Stay stay = mapper.selectById(dto.getStayId());
+        if (stay == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "入住单不存在");
+        }
+        if (!StayConstants.STATUS_CHECKED_IN.equals(stay.getStatus())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "璇ュ叆浣忓崟鐘舵€佷笉鏄湪浣忥紝鏃犳硶缁綇");
+        }
+
+        // 2. 验证鏂扮搴楁棩没有
+        LocalDateTime oldCheckOutTime = stay.getCheckOutTime();
+        LocalDateTime newCheckOutTime = dto.getNewCheckOutDate().atTime(12, 0);
+        if (!newCheckOutTime.isAfter(oldCheckOutTime)) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "新离店日期必须晚于当前离店日期");
+        }
+
+        // 3. 检查房间可用性
+        checkRoomAvailabilityForExtend(stay.getRoomId(), oldCheckOutTime, newCheckOutTime, stay.getId());
+
+        // 4. 计算缁綇璐圭敤
+        int extendedDays = (int) ChronoUnit.DAYS.between(oldCheckOutTime.toLocalDate(), dto.getNewCheckOutDate());
+        BigDecimal additionalAmount = calculateExtendAmount(stay, extendedDays);
+
+        // 5. 更新入住单
+        stay.setCheckOutTime(newCheckOutTime);
+        stay.setTotalAmount(stay.getTotalAmount().add(additionalAmount));
+        mapper.updateById(stay);
+
+        // 6. 更新账务单
+        updateFolioForExtend(stay.getId(), additionalAmount);
+
+        // 7. 濡傛灉鏄洟闃熷叆浣忥紝鍚屾更新鍥㈤槦璐﹀姟
+        if (stay.getTeamReservationId() != null) {
+            updateTeamFolioForExtend(stay, additionalAmount);
+        }
+
+        log.info("缁綇成功锛歴tayId={}, stayNo={}, extendedDays={}, additionalAmount={}",
+                stay.getId(), stay.getStayNo(), extendedDays, additionalAmount);
+
+        return StayExtendVO.builder()
+                .stayId(stay.getId())
+                .stayNo(stay.getStayNo())
+                .oldCheckOutTime(oldCheckOutTime)
+                .newCheckOutTime(newCheckOutTime)
+                .extendedDays(extendedDays)
+                .additionalAmount(additionalAmount)
+                .newTotalAmount(stay.getTotalAmount())
+                .build();
+    }
+
+    /**
+     * 妫€鏌ユ埧闂村湪缁綇鏈熼棿鐨勫彲鐢ㄦ€?
+     */
+    private void checkRoomAvailabilityForExtend(Long roomId, LocalDateTime startTime, LocalDateTime endTime, Long excludeStayId) {
+        // 检查入住冲突
+        LambdaQueryWrapper<Stay> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Stay::getRoomId, roomId)
+               .eq(Stay::getStatus, StayConstants.STATUS_CHECKED_IN)
+               .ne(Stay::getId, excludeStayId)
+               .lt(Stay::getCheckInTime, endTime)
+               .gt(Stay::getCheckOutTime, startTime);
+
+        Long count = mapper.selectCount(wrapper);
+        if (count > 0) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "璇ユ埧闂村湪缁綇鏈熼棿宸茶占用");
+        }
+
+        // 妫€鏌ラ璁㈠啿绐?
+        LambdaQueryWrapper<Reservation> reservationWrapper = new LambdaQueryWrapper<>();
+        reservationWrapper.eq(Reservation::getRoomId, roomId)
+                          .in(Reservation::getStatus,
+                              ReservationConstants.STATUS_PENDING,
+                              ReservationConstants.STATUS_CONFIRMED)
+                          .lt(Reservation::getCheckInDate, endTime.toLocalDate())
+                          .ge(Reservation::getCheckOutDate, startTime.toLocalDate());
+
+        Long reservationCount = reservationMapper.selectCount(reservationWrapper);
+        if (reservationCount > 0) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "璇ユ埧闂村湪缁綇鏈熼棿已有预订");
+        }
+    }
+
+    /**
+     * 计算缁綇璐圭敤
+     */
+    private BigDecimal calculateExtendAmount(Stay stay, int extendedDays) {
+        // 查询房间信息鑾峰彇鎴垮瀷ID
+        Room room = roomMapper.selectById(stay.getRoomId());
+        if (room == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "房间不存在");
+        }
+
+        BigDecimal totalAmount = BigDecimal.ZERO;
+        LocalDate startDate = stay.getCheckOutTime().toLocalDate();
+
+        for (int i = 0; i < extendedDays; i++) {
+            LocalDate date = startDate.plusDays(i);
+            RoomPriceVO priceVO = roomPriceService.getPriceByDate(
+                stay.getHotelId(), room.getRoomTypeId(), date, stay.getPricePlanId());
+            totalAmount = totalAmount.add(priceVO.getPrice());
+        }
+
+        return totalAmount;
+    }
+
+    /**
+     * 更新账务单
+     */
+    private void updateFolioForExtend(Long stayId, BigDecimal additionalAmount) {
+        LambdaQueryWrapper<Folio> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Folio::getStayId, stayId)
+               .eq(Folio::getStatus, StayConstants.FOLIO_STATUS_OPEN);
+
+        Folio folio = folioMapper.selectOne(wrapper);
+        if (folio != null) {
+            folio.setTotalAmount(folio.getTotalAmount().add(additionalAmount));
+            folio.setBalance(folio.getBalance().add(additionalAmount));
+            folioMapper.updateById(folio);
+        }
+    }
+
+    /**
+     * 缁綇鏃跺悓姝ユ洿鏂板洟闃熻处鍔?
+     */
+    private void updateTeamFolioForExtend(Stay stay, BigDecimal additionalAmount) {
+        // 更新鍥㈤槦预订房间鏄庣粏鐨勯噾棰?
+        LambdaQueryWrapper<TeamReservationRoom> roomWrapper = new LambdaQueryWrapper<>();
+        roomWrapper.eq(TeamReservationRoom::getStayId, stay.getId());
+        TeamReservationRoom teamRoom = teamReservationRoomMapper.selectOne(roomWrapper);
+        if (teamRoom != null) {
+            teamRoom.setAmount(teamRoom.getAmount().add(additionalAmount));
+            teamReservationRoomMapper.updateById(teamRoom);
+        }
+
+        // 更新鍥㈤槦预订鎬婚噾棰?
+        TeamReservation reservation = teamReservationMapper.selectById(stay.getTeamReservationId());
+        if (reservation != null) {
+            reservation.setTotalAmount(reservation.getTotalAmount().add(additionalAmount));
+            teamReservationMapper.updateById(reservation);
+        }
+
+        // 濡傛灉鏄粺涓€缁撶畻锛屾洿鏂板洟闃熻处鍔″崟
+        if (reservation != null && ReservationConstants.SETTLEMENT_UNIFIED.equals(reservation.getSettlementType())) {
+            LambdaQueryWrapper<TeamFolio> folioWrapper = new LambdaQueryWrapper<>();
+            folioWrapper.eq(TeamFolio::getTeamReservationId, stay.getTeamReservationId())
+                       .eq(TeamFolio::getStatus, StayConstants.FOLIO_STATUS_OPEN);
+            TeamFolio teamFolio = teamFolioMapper.selectOne(folioWrapper);
+            if (teamFolio != null) {
+                teamFolio.setTotalAmount(teamFolio.getTotalAmount().add(additionalAmount));
+                teamFolio.setBalance(teamFolio.getBalance().add(additionalAmount));
+                teamFolioMapper.updateById(teamFolio);
+            }
+        }
+    }
+
+
+    /**
+     * 退房?
+     *
+     * @param dto 退房参数
+     * @return 退房信息
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public StayCheckOutVO checkOut(StayCheckOutDTO dto) {
+        // 1. 验证入住单存在
+        Stay stay = mapper.selectById(dto.getStayId());
+        if (stay == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "入住单不存在");
+        }
+
+        // 2. 验证鐘舵€佸繀椤绘槸 CHECKED_IN
+        if (!StayConstants.STATUS_CHECKED_IN.equals(stay.getStatus())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该入住单状态不是在住，无法退房");
+        }
+
+        // 3. 设置实际离店时间为当前时间
+        LocalDateTime now = LocalDateTime.now();
+        stay.setActualCheckOutTime(now);
+
+        // 4. 更新入住单状态为 CHECKED_OUT
+        stay.setStatus(StayConstants.STATUS_CHECKED_OUT);
+        mapper.updateById(stay);
+
+        // 5. 更新房间鐘舵€佷负 DIRTY锛堝緟娓呮磥锛?
+        Room room = roomMapper.selectById(stay.getRoomId());
+        if (room != null) {
+            room.setStatus(RoomConstants.STATUS_DIRTY);
+            roomMapper.updateById(room);
+        }
+
+        // 6. 更新预订鍗曠姸鎬侊紙濡傛湁锛?
+        if (stay.getReservationId() != null) {
+            Reservation reservation = reservationMapper.selectById(stay.getReservationId());
+            if (reservation != null) {
+                reservation.setStatus(ReservationConstants.STATUS_CHECKED_OUT);
+                reservationMapper.updateById(reservation);
+            }
+        }
+
+        // 7. 关闭账单
+
+        // 6.1 濡傛灉鏄洟闃熷叆浣忥紝更新鍥㈤槦房间鏄庣粏状态
+        if (stay.getTeamReservationId() != null) {
+            LambdaQueryWrapper<TeamReservationRoom> teamRoomWrapper = new LambdaQueryWrapper<>();
+            teamRoomWrapper.eq(TeamReservationRoom::getStayId, stay.getId());
+            TeamReservationRoom teamRoom = teamReservationRoomMapper.selectOne(teamRoomWrapper);
+            if (teamRoom != null) {
+                teamRoom.setCheckOutTime(now);
+                teamRoom.setStatus(ReservationConstants.ROOM_STATUS_CHECKED_OUT);
+                teamReservationRoomMapper.updateById(teamRoom);
+            }
+        }
+        closeFolioForStay(stay.getId());
+
+        // 8. 查询瀹汉信息
+        Guest guest = guestMapper.selectById(stay.getGuestId());
+
+        // 9. 计算寰呯粨金额
+        BigDecimal outstandingAmount = stay.getTotalAmount().subtract(
+            stay.getPaidAmount() != null ? stay.getPaidAmount() : BigDecimal.ZERO
+        );
+
+        log.info("退房挎垚鍔燂細stayId={}, stayNo={}, roomNo={}",
+                stay.getId(), stay.getStayNo(), room != null ? room.getRoomNo() : "unknown");
+
+        // 10. 杩斿洖退房信息
+        return StayCheckOutVO.builder()
+                .stayId(stay.getId())
+                .stayNo(stay.getStayNo())
+                .roomNo(room != null ? room.getRoomNo() : null)
+                .guestName(guest != null ? guest.getName() : null)
+                .checkInTime(stay.getCheckInTime())
+                .actualCheckOutTime(now)
+                .totalAmount(stay.getTotalAmount())
+                .paidAmount(stay.getPaidAmount() != null ? stay.getPaidAmount() : BigDecimal.ZERO)
+                .outstandingAmount(outstandingAmount)
+                .build();
+    }
+
+    /**
+     * 鍏抽棴入住鍗曠殑璐﹀崟
+     */
+    private void closeFolioForStay(Long stayId) {
+        LambdaQueryWrapper<Folio> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Folio::getStayId, stayId)
+              .eq(Folio::getStatus, StayConstants.FOLIO_STATUS_OPEN);
+
+        Folio folio = folioMapper.selectOne(wrapper);
+        if (folio != null) {
+            folio.setStatus(StayConstants.FOLIO_STATUS_CLOSED);
+            folioMapper.updateById(folio);
+        }
+    }
+
+    /**
+     * 计算入住璐圭敤
+     */
+    private BigDecimal calculateStayAmount(Long hotelId, Long roomTypeId, LocalDate checkInDate, LocalDate checkOutDate, Long pricePlanId) {
+        BigDecimal totalAmount = BigDecimal.ZERO;
+        LocalDate currentDate = checkInDate;
+
+        while (currentDate.isBefore(checkOutDate)) {
+            RoomPriceVO priceVO = roomPriceService.getPriceByDate(hotelId, roomTypeId, currentDate, pricePlanId);
+            totalAmount = totalAmount.add(priceVO.getPrice());
+            currentDate = currentDate.plusDays(1);
+        }
+
+        return totalAmount;
+    }
+
+    /**
+     * 鏌ユ壘鎴栧垱寤哄浜?
+     */
+    private Guest findOrCreateGuest(Long hotelId, String name, String idNo, String phone, String gender) {
+        // 先尝试通过证件号查找
+        if (StringUtils.hasText(idNo)) {
+            LambdaQueryWrapper<Guest> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(Guest::getHotelId, hotelId)
+                   .eq(Guest::getIdNo, idNo);
+            Guest existingGuest = guestMapper.selectOne(wrapper);
+            if (existingGuest != null) {
+                return existingGuest;
+            }
+        }
+
+        // 再尝试通过手机号查找
+        if (StringUtils.hasText(phone)) {
+            LambdaQueryWrapper<Guest> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(Guest::getHotelId, hotelId)
+                   .eq(Guest::getPhone, phone);
+            Guest existingGuest = guestMapper.selectOne(wrapper);
+            if (existingGuest != null) {
+                return existingGuest;
+            }
+        }
+
+        // 创建鏂板浜?
+        Guest guest = new Guest();
+        guest.setHotelId(hotelId);
+        guest.setName(name);
+        guest.setIdNo(idNo);
+        guest.setPhone(phone);
+        guest.setGender(gender);
+        guest.setNationality("涓浗");
+        guestMapper.insert(guest);
+
+        return guest;
+    }
+
+    /**
+     * 创建账务单
+     */
+    private void createFolio(Stay stay) {
+        Folio folio = new Folio();
+        folio.setHotelId(stay.getHotelId());
+        folio.setFolioNo(generateFolioNo(stay.getHotelId()));
+        folio.setStayId(stay.getId());
+        folio.setGuestId(stay.getGuestId());
+        folio.setTotalAmount(stay.getTotalAmount());
+        folio.setPaidAmount(BigDecimal.ZERO);
+        folio.setBalance(stay.getTotalAmount());
+        folio.setStatus(StayConstants.FOLIO_STATUS_OPEN);
+        folioMapper.insert(folio);
+    }
+
+    /**
+     * 鐢熸垚璐﹀姟鍗曞彿
+     */
+    private String generateFolioNo(Long hotelId) {
+        String dateStr = LocalDate.now().format(DATE_FORMAT);
+        long seq = System.currentTimeMillis() % 1000000;
+        return "F" + dateStr + String.format("%06d", seq);
+    }
+
+    /**
+     * 鐢熸垚入住鍗曞彿
+     */
+    private String generateStayNo(Long hotelId) {
+        String dateStr = LocalDate.now().format(DATE_FORMAT);
+        // 绠€鍗曞疄鐜帮細浣跨敤时间鎴冲悗6浣?
+        long seq = System.currentTimeMillis() % 1000000;
+        return "S" + dateStr + String.format("%06d", seq);
+    }
+
+    /**
+     * 杞崲涓篤O
+     */
+    private StayVO convertToVO(Stay stay) {
+        StayVO vo = new StayVO();
+        BeanUtils.copyProperties(stay, vo);
+
+        // 查询閰掑簵信息
+        Hotel hotel = hotelMapper.selectById(stay.getHotelId());
+        if (hotel != null) {
+            vo.setHotelName(hotel.getName());
+        }
+
+        // 查询房间信息
+        Room room = roomMapper.selectById(stay.getRoomId());
+        if (room != null) {
+            vo.setRoomNo(room.getRoomNo());
+            // 查询鎴垮瀷
+            RoomType roomType = roomTypeMapper.selectById(room.getRoomTypeId());
+            if (roomType != null) {
+                vo.setRoomTypeId(roomType.getId());
+                vo.setRoomTypeName(roomType.getName());
+            }
+        }
+
+        // 查询瀹汉信息
+        Guest guest = guestMapper.selectById(stay.getGuestId());
+        if (guest != null) {
+            vo.setGuestName(guest.getName());
+            vo.setGuestPhone(guest.getPhone());
+        }
+
+        // 查询预订信息
+        if (stay.getReservationId() != null) {
+            Reservation reservation = reservationMapper.selectById(stay.getReservationId());
+            if (reservation != null) {
+                vo.setReservationNo(reservation.getReservationNo());
+            }
+        }
+
+        // 查询鍥㈤槦预订信息
+        if (stay.getTeamReservationId() != null) {
+            TeamReservation teamReservation = teamReservationMapper.selectById(stay.getTeamReservationId());
+            if (teamReservation != null) {
+                vo.setTeamReservationId(teamReservation.getId());
+                vo.setTeamReservationNo(teamReservation.getTeamReservationNo());
+                vo.setTeamName(teamReservation.getTeamName());
+                vo.setSettlementType(teamReservation.getSettlementType());
+                vo.setContactName(teamReservation.getContactName());
+                vo.setContactPhone(teamReservation.getContactPhone());
+                vo.setSource(teamReservation.getSource());
+            }
+        }
+
+        // 设置入住绫诲瀷锛堜粎鍦ㄤ负绌烘椂鏍规嵁鍏宠仈信息鎺ㄦ柇锛屽凡鏄庣‘设置鐨勪笉瑕嗙洊锛?
+        if (vo.getCheckInType() == null) {
+            if (stay.getTeamReservationId() != null) {
+                vo.setCheckInType("TEAM");
+            } else if (stay.getReservationId() != null) {
+                vo.setCheckInType("RESERVATION");
+            } else {
+                vo.setCheckInType("WALK_IN");
+            }
+        }
+                // 计算鏀粯状态
+        // 缁熶竴缁撶畻鐨勫洟闃燂細浣跨敤鍥㈤槦璐﹀姟鍗曠殑鏀粯状态
+        if ("TEAM".equals(vo.getCheckInType()) && "UNIFIED".equals(vo.getSettlementType())) {
+            LambdaQueryWrapper<TeamFolio> teamFolioWrapper = new LambdaQueryWrapper<>();
+            teamFolioWrapper.eq(TeamFolio::getTeamReservationId, stay.getTeamReservationId())
+                           .eq(TeamFolio::getStatus, StayConstants.FOLIO_STATUS_OPEN);
+            TeamFolio teamFolio = teamFolioMapper.selectOne(teamFolioWrapper);
+            if (teamFolio == null) {
+                teamFolioWrapper = new LambdaQueryWrapper<>();
+                teamFolioWrapper.eq(TeamFolio::getTeamReservationId, stay.getTeamReservationId());
+                teamFolio = teamFolioMapper.selectOne(teamFolioWrapper);
+            }
+            if (teamFolio != null) {
+                vo.setTeamFolioId(teamFolio.getId());
+                BigDecimal teamTotal = teamFolio.getTotalAmount() != null ? teamFolio.getTotalAmount() : BigDecimal.ZERO;
+                BigDecimal teamPaid = teamFolio.getPaidAmount() != null ? teamFolio.getPaidAmount() : BigDecimal.ZERO;
+                if (teamTotal.compareTo(BigDecimal.ZERO) > 0) {
+                    if (teamPaid.compareTo(teamTotal) >= 0) {
+                        vo.setPaymentStatus("PAID");
+                        vo.setUnpaidAmount(BigDecimal.ZERO);
+                    } else if (teamPaid.compareTo(BigDecimal.ZERO) > 0) {
+                        vo.setPaymentStatus("PARTIAL");
+                        vo.setUnpaidAmount(teamTotal.subtract(teamPaid));
+                    } else {
+                        vo.setPaymentStatus("UNPAID");
+                        vo.setUnpaidAmount(teamTotal);
+                    }
+                } else {
+                    vo.setPaymentStatus("NO_FEE");
+                    vo.setUnpaidAmount(BigDecimal.ZERO);
+                }
+            } else {
+                vo.setPaymentStatus("UNPAID");
+                vo.setUnpaidAmount(vo.getTotalAmount() != null ? vo.getTotalAmount() : BigDecimal.ZERO);
+            }
+        } else {
+            // 鍒嗗紑缁撶畻鎴栨暎瀹細浣跨敤入住鍗曡嚜韬殑鏀粯状态
+            if (vo.getTotalAmount() != null && vo.getTotalAmount().compareTo(BigDecimal.ZERO) > 0) {
+                if (vo.getPaidAmount() != null && vo.getPaidAmount().compareTo(vo.getTotalAmount()) >= 0) {
+                    vo.setPaymentStatus("PAID");
+                    vo.setUnpaidAmount(BigDecimal.ZERO);
+                } else if (vo.getPaidAmount() != null && vo.getPaidAmount().compareTo(BigDecimal.ZERO) > 0) {
+                    vo.setPaymentStatus("PARTIAL");
+                    vo.setUnpaidAmount(vo.getTotalAmount().subtract(vo.getPaidAmount()));
+                } else {
+                    vo.setPaymentStatus("UNPAID");
+                    vo.setUnpaidAmount(vo.getTotalAmount());
+                }
+            } else {
+                vo.setPaymentStatus("NO_FEE");
+                vo.setUnpaidAmount(BigDecimal.ZERO);
+            }
+
+        }
+
+        return vo;
+    }
+
+
+    /**
+     * 散客入住鍗曡浆鍏ュ洟闃熼璁?
+     * <p>
+     * 灏嗗凡入住鐨勬暎瀹㈠叆浣忓崟鍏宠仈鍒版寚瀹氱殑鍥㈤槦预订锛屽苟澶勭悊璐﹀姟鍚堝苟
+     * </p>
+     *
+     * @param stayId 散客入住鍗旾D
+     * @param dto    杞叆璇锋眰鍙傛暟
+     * @return 更新鍚庣殑入住信息
+     */
+
+    /**
+     * 换房
+     * <p>
+     * 将客人从当前房间换到新房间，自动调整账务
+     * </p>
+     *
+     * @param dto 换房请求参数
+     * @return 换房结果信息
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public ChangeRoomVO changeRoom(ChangeRoomDTO dto) {
+        // 1. 验证入住单存在且状态为在住
+        Stay stay = mapper.selectById(dto.getStayId());
+        if (stay == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "入住单不存在");
+        }
+        if (!StayConstants.STATUS_CHECKED_IN.equals(stay.getStatus())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该入住单状态不是在住，无法换房");
+        }
+
+        // 2. 验证新房间存在且状态为空闲
+        Room newRoom = roomMapper.selectById(dto.getNewRoomId());
+        if (newRoom == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "新房间不存在");
+        }
+        if (!RoomConstants.STATUS_AVAILABLE.equals(newRoom.getStatus())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "新房间状态不是空闲，无法换房");
+        }
+
+        // 3. 验证新房间不是当前房间
+        if (stay.getRoomId().equals(dto.getNewRoomId())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "新房间不能是当前房间");
+        }
+
+        // 4. 获取原房间信息
+        Room oldRoom = roomMapper.selectById(stay.getRoomId());
+        String oldRoomNo = oldRoom != null ? oldRoom.getRoomNo() : "未知";
+
+        // 5. 获取新房型信息
+        RoomType newRoomType = roomTypeMapper.selectById(newRoom.getRoomTypeId());
+
+        // 6. 计算费用调整（如果房型不同，需要调整价格）
+        BigDecimal amountAdjustment = BigDecimal.ZERO;
+        if (!stay.getRoomId().equals(dto.getNewRoomId())) {
+            // 计算原房间剩余天数的费用
+            long remainingDays = ChronoUnit.DAYS.between(
+                LocalDate.now(), stay.getCheckOutTime().toLocalDate());
+            if (remainingDays <= 0) {
+                remainingDays = 1;
+            }
+
+            // 获取原房型和新房型的价格
+            RoomType oldRoomType = roomTypeMapper.selectById(oldRoom.getRoomTypeId());
+            BigDecimal oldPrice = getRoomPrice(stay.getHotelId(), oldRoom.getId(), stay.getCheckInTime().toLocalDate());
+            BigDecimal newPrice = getRoomPrice(stay.getHotelId(), newRoom.getId(), LocalDate.now());
+
+            // 计算费用差额
+            amountAdjustment = newPrice.subtract(oldPrice).multiply(BigDecimal.valueOf(remainingDays));
+        }
+
+        // 7. 更新原房间状态为脏房
+        if (oldRoom != null) {
+            oldRoom.setStatus(RoomConstants.STATUS_DIRTY);
+            roomMapper.updateById(oldRoom);
+        }
+
+        // 8. 更新新房间状态为在住
+        newRoom.setStatus(RoomConstants.STATUS_OCCUPIED);
+        roomMapper.updateById(newRoom);
+
+        // 9. 更新入住单
+        stay.setRoomId(dto.getNewRoomId());
+        if (amountAdjustment.compareTo(BigDecimal.ZERO) != 0) {
+            stay.setTotalAmount(stay.getTotalAmount().add(amountAdjustment));
+        }
+        mapper.updateById(stay);
+
+        // 10. 更新账务单金额（如果有费用调整）
+        if (amountAdjustment.compareTo(BigDecimal.ZERO) != 0) {
+            updateFolioForChangeRoom(stay.getId(), amountAdjustment);
+        }
+
+        // 11. 记录换房日志
+        log.info("换房成功：stayId={}, stayNo={}, 从房间{}换到房间{}, 费用调整={}",
+                stay.getId(), stay.getStayNo(), oldRoomNo, newRoom.getRoomNo(), amountAdjustment);
+
+        // 12. 返回换房结果
+        return ChangeRoomVO.builder()
+                .stayId(stay.getId())
+                .stayNo(stay.getStayNo())
+                .oldRoomId(oldRoom != null ? oldRoom.getId() : null)
+                .oldRoomNo(oldRoomNo)
+                .newRoomId(newRoom.getId())
+                .newRoomNo(newRoom.getRoomNo())
+                .newRoomTypeId(newRoom.getRoomTypeId())
+                .newRoomTypeName(newRoomType != null ? newRoomType.getName() : null)
+                .reason(dto.getReason())
+                .amountAdjustment(amountAdjustment)
+                .newTotalAmount(stay.getTotalAmount())
+                .build();
+    }
+
+    /**
+     * 获取房间价格
+     */
+    private BigDecimal getRoomPrice(Long hotelId, Long roomId, LocalDate date) {
+        Room room = roomMapper.selectById(roomId);
+        if (room == null) {
+            return BigDecimal.ZERO;
+        }
+
+        // 先查询房价码价格
+        RoomPriceVO priceVO = roomPriceService.getPriceByDate(hotelId, room.getRoomTypeId(), date);
+        if (priceVO != null && priceVO.getPrice() != null) {
+            return priceVO.getPrice();
+        }
+
+        // 如果没有房价码价格，查询房型基础价
+        RoomType roomType = roomTypeMapper.selectById(room.getRoomTypeId());
+        return roomType != null && roomType.getBasePrice() != null ? roomType.getBasePrice() : BigDecimal.ZERO;
+    }
+
+    /**
+     * 更新账务单金额（换房费用调整）
+     */
+    private void updateFolioForChangeRoom(Long stayId, BigDecimal amountAdjustment) {
+        LambdaQueryWrapper<Folio> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Folio::getStayId, stayId)
+               .eq(Folio::getStatus, StayConstants.FOLIO_STATUS_OPEN);
+        Folio folio = folioMapper.selectOne(wrapper);
+
+        if (folio != null) {
+            folio.setTotalAmount(folio.getTotalAmount().add(amountAdjustment));
+            folio.setBalance(folio.getBalance().add(amountAdjustment));
+            folioMapper.updateById(folio);
+
+            // 创建调整交易记录
+            FinTransaction transaction = new FinTransaction();
+            transaction.setHotelId(folio.getHotelId());
+            transaction.setFolioId(folio.getId());
+            transaction.setType(FolioConstants.TRANSACTION_ROOM_FEE);
+            transaction.setAmount(amountAdjustment);
+            transaction.setDescription("换房费用调整");
+            transaction.setCreatedAt(LocalDateTime.now());
+            finTransactionMapper.insert(transaction);
+
+            log.info("换房账务调整：folioId={}, amountAdjustment={}", folio.getId(), amountAdjustment);
+        }
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public StayVO transferToTeam(Long stayId, StayTransferDTO dto) {
+        // 1. 鏍￠獙散客入住鍗?
+        Stay stay = mapper.selectById(stayId);
+        if (stay == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "入住单不存在");
+        }
+        if (!StayConstants.STATUS_CHECKED_IN.equals(stay.getStatus())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "只有在住状态的入住单才能转入团队");
+        }
+        if (stay.getTeamReservationId() != null) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "璇ュ叆浣忓崟宸插睘浜庡洟闃熼璁紝涓嶈兘閲嶅杞叆");
+        }
+
+        // 2. 鏍￠獙鍥㈤槦预订
+        TeamReservation teamReservation = teamReservationMapper.selectById(dto.getTeamReservationId());
+        if (teamReservation == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "团队预订不存在");
+        }
+        if (ReservationConstants.STATUS_CANCELLED.equals(teamReservation.getStatus())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "已取消的团队预订不能接受散客入住单");
+        }
+        if (ReservationConstants.STATUS_CHECKED_OUT.equals(teamReservation.getStatus())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "已离店的团队预订不能接受散客入住单");
+        }
+
+        // 3. 更新入住鍗曪細鍏宠仈鍥㈤槦预订
+        stay.setTeamReservationId(teamReservation.getId());
+        stay.setCheckInType("TEAM");
+        mapper.updateById(stay);
+        log.info("散客入住鍗曞凡鍏宠仈鍥㈤槦预订锛歴tayId={}, teamReservationId={}", stayId, teamReservation.getId());
+
+        // 4. 鏂板鍥㈤槦预订房间鏄庣粏
+        Room room = roomMapper.selectById(stay.getRoomId());
+        TeamReservationRoom teamRoom = new TeamReservationRoom();
+        teamRoom.setTeamReservationId(teamReservation.getId());
+        teamRoom.setRoomTypeId(room != null ? room.getRoomTypeId() : null);
+        teamRoom.setRoomId(stay.getRoomId());
+        teamRoom.setAmount(stay.getTotalAmount());
+        teamRoom.setStatus(ReservationConstants.ROOM_STATUS_CHECKED_IN);
+        teamRoom.setStayId(stay.getId());
+        teamRoom.setCheckInTime(stay.getCheckInTime());
+
+        // 鑾峰彇瀹汉信息
+        if (stay.getGuestId() != null) {
+            Guest guest = guestMapper.selectById(stay.getGuestId());
+            if (guest != null) {
+                teamRoom.setGuestName(guest.getName());
+                teamRoom.setGuestPhone(guest.getPhone());
+                teamRoom.setGuestIdNo(guest.getIdNo());
+                teamRoom.setGuestGender(guest.getGender());
+            }
+        }
+        teamReservationRoomMapper.insert(teamRoom);
+        log.info("宸插垱寤哄洟闃熼璁㈡埧闂存槑缁嗭細teamReservationRoomId={}, stayId={}", teamRoom.getId(), stayId);
+
+        // 5. 更新鍥㈤槦预订姹囨€讳俊鎭?
+        teamReservation.setTotalRooms(teamReservation.getTotalRooms() + 1);
+        teamReservation.setTotalAmount(teamReservation.getTotalAmount().add(
+                stay.getTotalAmount() != null ? stay.getTotalAmount() : BigDecimal.ZERO));
+        teamReservationMapper.updateById(teamReservation);
+
+        // 6. 璐﹀姟澶勭悊
+        handleFolioTransfer(stay, teamReservation);
+
+        log.info("散客入住鍗曡浆鍏ュ洟闃熸垚鍔燂細stayId={}, teamReservationId={}", stayId, teamReservation.getId());
+        return convertToVO(stay);
+    }
+
+    /**
+     * 澶勭悊散客璐﹀姟杞叆鍥㈤槦
+     * <p>
+     * 缁熶竴缁撶畻锛氬皢散客 Folio 金额鍚堝苟鍒?TeamFolio
+     * 鍒嗗紑缁撶畻锛氭暎瀹?Folio 淇濇寔鐙珛锛岄€氳繃 stay 鍏宠仈鍥㈤槦
+     * </p>
+     */
+    private void handleFolioTransfer(Stay stay, TeamReservation teamReservation) {
+        // 查询散客鐨勫紑鏀捐处鍔″崟
+        LambdaQueryWrapper<Folio> folioWrapper = new LambdaQueryWrapper<>();
+        folioWrapper.eq(Folio::getStayId, stay.getId())
+                   .eq(Folio::getStatus, StayConstants.FOLIO_STATUS_OPEN);
+        Folio folio = folioMapper.selectOne(folioWrapper);
+
+        if (folio == null) {
+            log.warn("散客入住鍗曟病鏈夊紑鏀剧殑璐﹀姟鍗曪紝璺宠繃璐﹀姟鍚堝苟锛歴tayId={}", stay.getId());
+            return;
+        }
+
+        if (ReservationConstants.SETTLEMENT_UNIFIED.equals(teamReservation.getSettlementType())) {
+            // 缁熶竴缁撶畻锛氬悎骞跺埌鍥㈤槦璐﹀姟鍗?
+            LambdaQueryWrapper<TeamFolio> teamFolioWrapper = new LambdaQueryWrapper<>();
+            teamFolioWrapper.eq(TeamFolio::getTeamReservationId, teamReservation.getId())
+                           .eq(TeamFolio::getStatus, StayConstants.FOLIO_STATUS_OPEN);
+            TeamFolio teamFolio = teamFolioMapper.selectOne(teamFolioWrapper);
+
+            if (teamFolio != null) {
+                // 鍚堝苟金额
+                teamFolio.setTotalAmount(teamFolio.getTotalAmount().add(
+                        folio.getTotalAmount() != null ? folio.getTotalAmount() : BigDecimal.ZERO));
+                teamFolio.setPaidAmount(teamFolio.getPaidAmount().add(
+                        folio.getPaidAmount() != null ? folio.getPaidAmount() : BigDecimal.ZERO));
+                teamFolio.setBalance(teamFolio.getBalance().add(
+                        folio.getBalance() != null ? folio.getBalance() : BigDecimal.ZERO));
+                teamFolioMapper.updateById(teamFolio);
+
+                // 鍏抽棴散客璐﹀姟鍗?
+                folio.setStatus(StayConstants.FOLIO_STATUS_CLOSED);
+                folioMapper.updateById(folio);
+
+                log.info("散客璐﹀姟宸插悎骞跺埌鍥㈤槦璐﹀姟鍗曪細folioId={}, teamFolioId={}, 鍚堝苟金额={}",
+                        folio.getId(), teamFolio.getId(), folio.getBalance());
+            } else {
+                log.warn("鍥㈤槦预订娌℃湁寮€鏀剧殑璐﹀姟鍗曪紝散客璐﹀姟淇濇寔鐙珛锛歵eamReservationId={}", teamReservation.getId());
+            }
+        } else {
+            // 鍒嗗紑缁撶畻锛氭暎瀹㈣处鍔′繚鎸佺嫭绔嬶紝浠呰褰曞娉?
+            folioMapper.updateById(folio);
+            log.info("散客璐﹀姟淇濇寔鐙珛锛堝垎寮€缁撶畻锛夛細folioId={}, teamReservationId={}",
+                    folio.getId(), teamReservation.getId());
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

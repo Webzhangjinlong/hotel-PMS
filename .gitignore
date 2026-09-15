@@ -1,0 +1,49 @@
+# ===== Java / Maven =====
+target/
+*.class
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+
+# ===== IDE =====
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# ===== Node / 前端 =====
+node_modules/
+dist/
+dist-ssr/
+*.local
+.npmrc
+
+# ===== 日志 =====
+*.log
+logs/
+
+# ===== 本地 Maven 仓库 / 临时目录 =====
+.repository/
+local-repo/
+_jarcheck/
+_jarcheck2/
+
+# ===== 备份文件（存量待清理；新增禁止入仓） =====
+*.bak
+*.bak2
+*.bak3
+*.bak4
+*.bak5
+*.backup
+*.backup*
+*.orig
+
+# ===== OS =====
+Thumbs.db
+.DS_Store
+
+# ===== 环境与密钥（禁止提交） =====
+.env
+.env.*
+*.pem
+*.key

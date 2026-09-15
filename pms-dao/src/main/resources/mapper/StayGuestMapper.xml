@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hotel.pms.dao.mapper.StayGuestMapper">
+    
+    <!-- 根据入住单ID列表批量查询同住人（不包括主客人） -->
+    <select id="selectByStayIds" resultType="com.hotel.pms.dao.entity.StayGuest">
+        SELECT * FROM stay_guest 
+        WHERE stay_id IN 
+        <foreach collection="stayIds" item="stayId" open="(" separator="," close=")">
+            #{stayId}
+        </foreach>
+        AND is_primary = false
+        ORDER BY stay_id, id
+    </select>
+    
+</mapper>

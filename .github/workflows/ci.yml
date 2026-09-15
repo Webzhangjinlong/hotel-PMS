@@ -1,0 +1,80 @@
+# CI 门禁（Harness 约束集成）
+# 触发：push main / PR 到 main
+# 作用：backend = mvn verify（编译 + ArchUnit 架构守护 + 测试 + Flyway 迁移校验）；frontend = npm build
+# 门禁：main 分支保护 required status checks = backend-ci, frontend-ci
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend-ci:
+    name: backend-ci
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: hotel_pms_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Backend verify (compile + ArchUnit + tests + Flyway)
+        working-directory: ./
+        env:
+          PMS_DB_URL: jdbc:postgresql://localhost:5432/hotel_pms_test
+          PMS_DB_USERNAME: postgres
+          PMS_DB_PASSWORD: postgres
+        run: mvn -B -pl pms-api -am verify
+
+      - name: Upload surefire reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: '**/target/surefire-reports/'
+
+  frontend-ci:
+    name: frontend-ci
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: pms-web/package-lock.json
+
+      - name: Install & build
+        working-directory: pms-web
+        run: |
+          npm ci
+          npm run build

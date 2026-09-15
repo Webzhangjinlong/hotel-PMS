@@ -1,0 +1,17 @@
+# 生产环境配置
+spring:
+  datasource:
+    url: jdbc:postgresql://${PMS_DB_HOST}:${PMS_DB_PORT}/hotel_pms
+    username: ${PMS_DB_USERNAME}
+    password: ${PMS_DB_PASSWORD}
+
+  data:
+      redis:
+        host: 127.0.0.1
+        port: 6379
+        password:
+
+logging:
+  level:
+    com.hotel.pms: INFO
+    org.springframework: WARN
