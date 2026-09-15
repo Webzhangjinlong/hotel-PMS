@@ -32,10 +32,12 @@
 | 编号 | 违规描述 | 位置 | 对应规则 | 治理方式 | 状态 |
 |------|----------|------|----------|----------|------|
 | V-01 | Controller 直调 Mapper | `UserController`（SysAccountMapper、SysUserRoleMapper） | R03 | 抽到 Service 层，ArchUnit 豁免删除 | ⏳ 待治理 |
-| V-02 | Controller 直用 Entity | `NightAuditArchiveController`/`OperationLogController`/`PermissionController`/`PoliceUploadController`/`ShiftController`/`UserController`（7 处 Entity 引用） | R04 | 经 Service 返回 DTO/VO | ⏳ 待治理 |
+| V-02 | Controller 直用 Entity | `MemberController`/`RoomController`/`NightAuditArchiveController`/`OperationLogController`/`PermissionController`/`PoliceUploadController`/`ShiftController`/`UserController`（8 个类，ArchUnit 实测 7 处调用 + 7 处 import） | R04 | 经 Service 返回 DTO/VO | ⏳ 待治理 |
 | V-03 | 硬编码 hotelId=1L | `ReportServiceImpl` 8 处（getShiftReport/getEntryDetail/getEntrySummary/getEntryTotal/getPaymentDetail/getPaymentSummary/getTransferReport/getChargeBackAdjust/getCheckoutActualStats/getCheckoutActualDetail） | R10 | 改用 `UserContext.getHotelId()` | ⏳ 待治理 |
 | V-04 | 报表服务跨域直调 Mapper | `ReportServiceImpl` 直调 DepositMapper/MemberMapper/SysShiftMapper 等 | R11 | 收敛为走对应 Service 或显式登记例外 | ⏳ 待收紧 |
-| V-05 | 源码目录混入 `.bak`/`.backup` 文件 | 全仓约 20+ 个（`*.bak`、`*.backup`、`*.bak2`~`*.bak5`） | AGENTS.md DO NOT | 确认无用后清理 | ⏳ 待治理 |
+| V-05 | 源码目录混入 `.bak`/`.backup` 文件 | 全仓约 20+ 个（`*.bak`、`*.backup`、`*.backup2`~`*.backup6`） | AGENTS.md DO NOT | 确认无用后清理 | ⏳ 待治理 |
+| V-06 | 前端硬编码 hotelId=1 | `pms-web/src/views/reports/EnhancedReport.vue`（queryParams.hotelId=1） | R10 | 从登录态/路由上下文取当前酒店 | ⏳ 待治理 |
+| V-07 | 前端引用不存在的 API 导出 | `EnhancedReport.vue` 导入 `getFullReport` 而 `api/report.js` 未导出（存量 bug，构建失败） | CI frontend-ci | **已修复**（report.js 补 getFullReport → /api/v1/metrics/full-report） | ✅ 已修复 |
 
 ## 规则注册流程
 

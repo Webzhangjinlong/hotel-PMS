@@ -111,3 +111,12 @@ export function getProductSalesDetail(params) {
     params
   })
 }
+
+// 获取完整报表（报表增强页：基础指标 + 渠道收入占比 + 趋势数据）
+export function getFullReport(params) {
+  return request({
+    url: '/api/v1/metrics/full-report',
+    method: 'get',
+    params
+  })
+}

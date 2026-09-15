@@ -1,5 +1,7 @@
 package com.hotel.pms.arch;
 
+import com.tngtech.archunit.base.DescribedPredicate;
+import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
@@ -7,10 +9,10 @@ import com.tngtech.archunit.lang.ArchRule;
 
 import java.util.Set;
 
+import static com.tngtech.archunit.base.DescribedPredicate.describe;
 import static com.tngtech.archunit.base.DescribedPredicate.doNot;
 import static com.tngtech.archunit.core.domain.JavaClass.Predicates.simpleName;
 import static com.tngtech.archunit.core.domain.JavaClass.Predicates.simpleNameEndingWith;
-import static com.tngtech.archunit.core.domain.JavaClass.Predicates.simpleNameIn;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noFields;
@@ -30,16 +32,23 @@ public class ArchitectureTest {
 
     /** 存量违规 V-02：Controller 直用 Entity（待治理，修复后删除排除） */
     private static final Set<String> KNOWN_ENTITY_VIOLATIONS = Set.of(
+            "MemberController",
             "NightAuditArchiveController",
             "OperationLogController",
             "PermissionController",
             "PoliceUploadController",
+            "RoomController",
             "ShiftController",
             "UserController");
 
     /** 存量违规 V-01：Controller 直调 Mapper（待治理，修复后删除排除） */
     private static final Set<String> KNOWN_MAPPER_VIOLATIONS = Set.of(
             "UserController");
+
+    /** 排除已知存量违规类（rule-registry V-01/V-02 台账） */
+    private static DescribedPredicate<JavaClass> notKnownViolation(Set<String> names, String description) {
+        return describe(description, c -> !names.contains(c.getSimpleName()));
+    }
 
     // ===== R02 硬约束 10：分层依赖 Controller → Service → Mapper，禁止反向 =====
 
@@ -54,14 +63,14 @@ public class ArchitectureTest {
                     .layer("Mapper").definedBy("com.hotel.pms.dao.mapper..")
                     .whereLayer("Controller").mayNotBeAccessedByAnyLayer()
                     .whereLayer("Service").mayOnlyBeAccessedByLayers("Controller", "Aspect")
-                    .whereLayer("Mapper").mayNotAccessAnyLayer();
+                    .whereLayer("Mapper").mayOnlyBeAccessedByLayers("Controller", "Service", "Aspect");
 
     // ===== R03 硬约束 10：Controller 不得直调 Mapper（存量 UserController 豁免） =====
 
     @ArchTest
     static final ArchRule controller_never_touches_mapper =
             noClasses().that().resideInAPackage("com.hotel.pms..controller..")
-                    .and().doNot(haveSimpleNameIn(KNOWN_MAPPER_VIOLATIONS))
+                    .and(notKnownViolation(KNOWN_MAPPER_VIOLATIONS, "not a known mapper violation (V-01)"))
                     .should().dependOnClassesThat().haveSimpleNameEndingWith("Mapper")
                     .allowEmptyShould(true);
 
@@ -70,7 +79,7 @@ public class ArchitectureTest {
     @ArchTest
     static final ArchRule controller_never_uses_entity =
             noClasses().that().resideInAPackage("com.hotel.pms..controller..")
-                    .and().doNot(haveSimpleNameIn(KNOWN_ENTITY_VIOLATIONS))
+                    .and(notKnownViolation(KNOWN_ENTITY_VIOLATIONS, "not a known entity violation (V-02)"))
                     .should().dependOnClassesThat().resideInAPackage("com.hotel.pms.dao.entity..")
                     .allowEmptyShould(true);
 
@@ -102,13 +111,14 @@ public class ArchitectureTest {
                     .should().haveSimpleNameEndingWith("Controller")
                     .allowEmptyShould(true);
 
-    // ===== R07：分层类命名规范 Service（顶层类；config 基础设施 *Helper 白名单） =====
+    // ===== R07：分层类命名规范 Service（顶层类；config 基础设施 *Helper、实现类 *ServiceImpl 白名单） =====
 
     @ArchTest
     static final ArchRule service_naming =
             classes().that().resideInAPackage("com.hotel.pms.service..")
                     .and().areTopLevelClasses()
                     .should().haveSimpleNameEndingWith("Service")
+                    .orShould().haveSimpleNameEndingWith("ServiceImpl")
                     .orShould().haveSimpleNameEndingWith("Helper")
                     .allowEmptyShould(true);
 

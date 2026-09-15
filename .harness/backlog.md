@@ -8,10 +8,12 @@
 | 编号 | 任务 | 说明 | 对应规则 | 优先级 | 预计工时 |
 |------|------|------|----------|--------|----------|
 | V-01 | Controller 直调 Mapper 治理 | `UserController` 中 SysAccountMapper/SysUserRoleMapper 调用抽到 Service | R03 | P0 | 0.5天 |
-| V-02 | Controller 直用 Entity 治理 | 6 个 Controller 的 Entity 引用改为 Service + DTO/VO | R04 | P0 | 1天 |
+| V-02 | Controller 直用 Entity 治理 | 8 个 Controller（Member/Room/NightAuditArchive/OperationLog/Permission/PoliceUpload/Shift/User）的 Entity 引用改为 Service + DTO/VO | R04 | P0 | 1.5天 |
 | V-03 | 报表服务 hotel_id 硬编码治理 | `ReportServiceImpl` 8 处 `1L` 改为 `UserContext.getHotelId()` | R10 | P0 | 0.5天 |
 | V-04 | 报表服务跨域 Mapper 调用收敛 | DepositMapper/MemberMapper/SysShiftMapper 等改走对应 Service 或登记例外 | R11 | P1 | 1天 |
-| V-05 | 清理源码目录 `.bak`/`.backup` 文件 | 确认无用后删除（约 20+ 个），并建立 .gitignore 防护 | DO NOT | P1 | 0.5天 |
+| V-05 | 清理源码目录 `.bak`/`.backup` 文件 | 确认无用后删除（约 20+ 个），.gitignore 已防护 | DO NOT | P1 | 0.5天 |
+| V-06 | 前端硬编码 hotelId 治理 | `EnhancedReport.vue` queryParams.hotelId=1 改为登录态/上下文取值 | R10 | P0 | 0.5天 |
+| V-07 | 前端缺失 API 导出修复 | report.js 补 `getFullReport`（→ /api/v1/metrics/full-report） | CI | 已完成 | 已修复 ✅ |
 
 ## 功能开发（参考 doc/05-功能开发进度.md 短期计划）
 
