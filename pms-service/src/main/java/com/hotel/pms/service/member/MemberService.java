@@ -196,6 +196,18 @@ public class MemberService {
     }
 
     /**
+     * 根据手机号查询会员（返回 VO，供 Controller 直接使用）
+     *
+     * @param hotelId 酒店ID
+     * @param phone   手机号
+     * @return 会员 VO，不存在返回 null
+     */
+    public MemberVO getByPhoneVO(Long hotelId, String phone) {
+        Member member = getByPhone(hotelId, phone);
+        return member == null ? null : getById(member.getId());
+    }
+
+    /**
      * 分页查询会员
      */
     public PageResponse<MemberVO> pageList(MemberQueryDTO queryDTO) {

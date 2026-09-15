@@ -46,11 +46,7 @@ public class MemberController {
     @Operation(summary = "根据手机号查询会员")
     public Result<MemberVO> getByPhone(@PathVariable String phone) {
         Long hotelId = UserContext.getHotelId();
-        var member = memberService.getByPhone(hotelId, phone);
-        if (member == null) {
-            return Result.success(null);
-        }
-        return Result.success(memberService.getById(member.getId()));
+        return Result.success(memberService.getByPhoneVO(hotelId, phone));
     }
 
     @OperationLog(module = "会员管理", action = "注册会员", targetType = "会员")

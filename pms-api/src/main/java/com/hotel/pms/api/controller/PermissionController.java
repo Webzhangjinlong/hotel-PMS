@@ -1,10 +1,12 @@
 package com.hotel.pms.api.controller;
 
+import com.hotel.pms.common.dto.SysPermissionDTO;
+import com.hotel.pms.common.dto.SysPermissionVO;
 import com.hotel.pms.common.result.Result;
-import com.hotel.pms.dao.entity.SysPermission;
 import com.hotel.pms.service.auth.PermissionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -32,9 +34,8 @@ public class PermissionController {
      */
     @GetMapping
     @Operation(summary = "查询所有权限", description = "查询所有权限列表，用于角色权限分配")
-    public Result<List<SysPermission>> list() {
-        List<SysPermission> permissions = permissionService.listAllPermissions();
-        return Result.success(permissions);
+    public Result<List<SysPermissionVO>> list() {
+        return Result.success(permissionService.listAllPermissions());
     }
     
     /**
@@ -42,9 +43,8 @@ public class PermissionController {
      */
     @GetMapping("/{id}")
     @Operation(summary = "查询权限详情", description = "根据ID查询权限详情")
-    public Result<SysPermission> get(@PathVariable Long id) {
-        SysPermission permission = permissionService.getPermission(id);
-        return Result.success(permission);
+    public Result<SysPermissionVO> get(@PathVariable Long id) {
+        return Result.success(permissionService.getPermission(id));
     }
     
     /**
@@ -52,9 +52,8 @@ public class PermissionController {
      */
     @PostMapping
     @Operation(summary = "创建权限", description = "创建新权限")
-    public Result<SysPermission> create(@RequestBody SysPermission permission) {
-        SysPermission result = permissionService.createPermission(permission);
-        return Result.success(result);
+    public Result<SysPermissionVO> create(@Valid @RequestBody SysPermissionDTO dto) {
+        return Result.success(permissionService.createPermission(dto));
     }
     
     /**
@@ -62,10 +61,8 @@ public class PermissionController {
      */
     @PutMapping("/{id}")
     @Operation(summary = "更新权限", description = "更新权限信息")
-    public Result<SysPermission> update(@PathVariable Long id, @RequestBody SysPermission permission) {
-        permission.setId(id);
-        SysPermission result = permissionService.updatePermission(permission);
-        return Result.success(result);
+    public Result<SysPermissionVO> update(@PathVariable Long id, @Valid @RequestBody SysPermissionDTO dto) {
+        return Result.success(permissionService.updatePermission(id, dto));
     }
     
     /**

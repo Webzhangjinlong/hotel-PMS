@@ -5,11 +5,13 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hotel.pms.common.dto.PoliceManualUploadDTO;
 import com.hotel.pms.common.dto.PoliceUploadQueryDTO;
+import com.hotel.pms.common.dto.PoliceUploadRecordVO;
 import com.hotel.pms.common.dto.PoliceUploadStatsVO;
 import com.hotel.pms.common.exception.BusinessException;
 import com.hotel.pms.common.result.ResultCode;
 import com.hotel.pms.dao.entity.PoliceUploadRecord;
 import com.hotel.pms.dao.mapper.PoliceUploadRecordMapper;
+import org.springframework.beans.BeanUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -43,7 +45,7 @@ public class PoliceUploadService {
      * @param queryDTO 查询条件
      * @return 分页结果
      */
-    public IPage<PoliceUploadRecord> getUploadList(PoliceUploadQueryDTO queryDTO) {
+    public IPage<PoliceUploadRecordVO> getUploadList(PoliceUploadQueryDTO queryDTO) {
         Page<PoliceUploadRecord> page = new Page<>(queryDTO.getPage(), queryDTO.getSize());
 
         LambdaQueryWrapper<PoliceUploadRecord> wrapper = new LambdaQueryWrapper<>();
@@ -54,7 +56,7 @@ public class PoliceUploadService {
                .le(queryDTO.getEndDate() != null, PoliceUploadRecord::getCreatedAt, queryDTO.getEndDate().atTime(LocalTime.MAX))
                .orderByDesc(PoliceUploadRecord::getCreatedAt);
 
-        return policeUploadRecordMapper.selectPage(page, wrapper);
+        return policeUploadRecordMapper.selectPage(page, wrapper).convert(this::toVO);
     }
 
     /**
@@ -63,12 +65,21 @@ public class PoliceUploadService {
      * @param id 记录ID
      * @return 上传记录
      */
-    public PoliceUploadRecord getUploadById(Long id) {
+    public PoliceUploadRecordVO getUploadById(Long id) {
         PoliceUploadRecord record = policeUploadRecordMapper.selectById(id);
         if (record == null) {
             throw new BusinessException(ResultCode.DATA_NOT_FOUND, "上传记录不存在");
         }
-        return record;
+        return toVO(record);
+    }
+
+    /**
+     * 公安上传记录实体转 VO
+     */
+    private PoliceUploadRecordVO toVO(PoliceUploadRecord record) {
+        PoliceUploadRecordVO vo = new PoliceUploadRecordVO();
+        BeanUtils.copyProperties(record, vo);
+        return vo;
     }
 
     /**
@@ -78,7 +89,10 @@ public class PoliceUploadService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void retryUpload(Long id) {
-        PoliceUploadRecord record = getUploadById(id);
+        PoliceUploadRecord record = policeUploadRecordMapper.selectById(id);
+        if (record == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "上传记录不存在");
+        }
 
         if (!"FAILED".equals(record.getStatus())) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "只能重试失败的记录");

@@ -3,6 +3,7 @@ package com.hotel.pms.service.nightaudit;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.hotel.pms.common.dto.NightAuditArchiveVO;
 import com.hotel.pms.common.dto.NightAuditQueryDTO;
 import com.hotel.pms.common.dto.NightAuditVO;
 import com.hotel.pms.common.exception.BusinessException;
@@ -11,6 +12,7 @@ import com.hotel.pms.common.result.ResultCode;
 import com.hotel.pms.dao.entity.*;
 import com.hotel.pms.dao.mapper.*;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -115,7 +117,7 @@ public class NightAuditArchiveService {
     /**
      * 查询归档数据
      */
-    public PageResponse<NightAuditArchive> getArchiveList(NightAuditQueryDTO queryDTO) {
+    public PageResponse<NightAuditArchiveVO> getArchiveList(NightAuditQueryDTO queryDTO) {
         LambdaQueryWrapper<NightAuditArchive> wrapper = new LambdaQueryWrapper<>();
         
         if (queryDTO.getHotelId() != null) {
@@ -133,8 +135,20 @@ public class NightAuditArchiveService {
         Page<NightAuditArchive> page = new Page<>(queryDTO.getPageNum(), queryDTO.getPageSize());
         IPage<NightAuditArchive> result = nightAuditArchiveMapper.selectPage(page, wrapper);
         
-        return new PageResponse<>(result.getRecords(), result.getTotal(), 
+        List<NightAuditArchiveVO> records = result.getRecords().stream()
+                .map(this::toVO)
+                .collect(Collectors.toList());
+        return new PageResponse<>(records, result.getTotal(), 
                 (int) result.getCurrent(), (int) result.getSize());
+    }
+
+    /**
+     * 夜审归档记录实体转 VO
+     */
+    private NightAuditArchiveVO toVO(NightAuditArchive archive) {
+        NightAuditArchiveVO vo = new NightAuditArchiveVO();
+        BeanUtils.copyProperties(archive, vo);
+        return vo;
     }
     
     /**

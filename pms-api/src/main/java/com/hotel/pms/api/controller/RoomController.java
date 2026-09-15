@@ -301,20 +301,8 @@ public class RoomController {
 
         // 如果有冲突，返回冲突的预订信息
         if (hasConflict) {
-            java.util.List<com.hotel.pms.dao.entity.Reservation> conflicts =
-                roomService.getConflictReservations(roomId, checkIn, checkOut, excludeReservationId);
-            java.util.List<java.util.Map<String, Object>> conflictList = new java.util.ArrayList<>();
-            for (com.hotel.pms.dao.entity.Reservation res : conflicts) {
-                java.util.Map<String, Object> conflictInfo = new java.util.HashMap<>();
-                conflictInfo.put("reservationId", res.getId());
-                conflictInfo.put("reservationNo", res.getReservationNo());
-                conflictInfo.put("guestName", res.getGuestName());
-                conflictInfo.put("checkInDate", res.getCheckInDate() != null ? res.getCheckInDate().toString() : null);
-                conflictInfo.put("checkOutDate", res.getCheckOutDate() != null ? res.getCheckOutDate().toString() : null);
-                conflictInfo.put("status", res.getStatus());
-                conflictList.add(conflictInfo);
-            }
-            result.put("conflictingReservations", conflictList);
+            result.put("conflictingReservations",
+                    roomService.getConflictReservationsVO(roomId, checkIn, checkOut, excludeReservationId));
         }
 
         return Result.success(result);

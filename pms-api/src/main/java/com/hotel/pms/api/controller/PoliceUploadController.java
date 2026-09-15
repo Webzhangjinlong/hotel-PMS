@@ -4,9 +4,9 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.hotel.pms.api.config.UserContext;
 import com.hotel.pms.common.dto.PoliceManualUploadDTO;
 import com.hotel.pms.common.dto.PoliceUploadQueryDTO;
+import com.hotel.pms.common.dto.PoliceUploadRecordVO;
 import com.hotel.pms.common.dto.PoliceUploadStatsVO;
 import com.hotel.pms.common.result.Result;
-import com.hotel.pms.dao.entity.PoliceUploadRecord;
 import com.hotel.pms.service.police.PoliceUploadService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -44,8 +44,8 @@ public class PoliceUploadController {
      */
     @GetMapping
     @Operation(summary = "查询上传记录列表", description = "根据条件分页查询上传记录")
-    public Result<IPage<PoliceUploadRecord>> getUploadList(PoliceUploadQueryDTO queryDTO) {
-        IPage<PoliceUploadRecord> result = policeUploadService.getUploadList(queryDTO);
+    public Result<IPage<PoliceUploadRecordVO>> getUploadList(PoliceUploadQueryDTO queryDTO) {
+        IPage<PoliceUploadRecordVO> result = policeUploadService.getUploadList(queryDTO);
         return Result.success(result);
     }
 
@@ -57,9 +57,9 @@ public class PoliceUploadController {
      */
     @GetMapping("/{id}")
     @Operation(summary = "查询上传记录详情", description = "根据ID查询上传记录详情")
-    public Result<PoliceUploadRecord> getUploadById(
+    public Result<PoliceUploadRecordVO> getUploadById(
             @Parameter(description = "记录ID") @PathVariable Long id) {
-        PoliceUploadRecord result = policeUploadService.getUploadById(id);
+        PoliceUploadRecordVO result = policeUploadService.getUploadById(id);
         return Result.success(result);
     }
 

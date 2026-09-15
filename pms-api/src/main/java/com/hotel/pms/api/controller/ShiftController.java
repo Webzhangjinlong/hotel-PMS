@@ -3,9 +3,10 @@ package com.hotel.pms.api.controller;
 import com.hotel.pms.api.config.UserContext;
 import com.hotel.pms.common.result.Result;
 import com.hotel.pms.common.annotation.OperationLog;
-import com.hotel.pms.dao.entity.SysShift;
-import com.hotel.pms.dao.entity.SysShiftMessage;
-import com.hotel.pms.dao.entity.SysShiftNotifyConfig;
+import com.hotel.pms.common.dto.SysShiftDTO;
+import com.hotel.pms.common.dto.SysShiftMessageVO;
+import com.hotel.pms.common.dto.SysShiftNotifyConfigVO;
+import com.hotel.pms.common.dto.SysShiftVO;
 import com.hotel.pms.service.shift.ShiftService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -27,22 +28,22 @@ public class ShiftController {
 
     @PostMapping
     @Operation(summary = "创建交班草稿")
-    public Result<SysShift> create(@RequestBody SysShift shift) {
+    public Result<SysShiftVO> create(@RequestBody SysShiftDTO dto) {
         Long hotelId = UserContext.getHotelId();
         Long userId = UserContext.getUserId();
-        return Result.success(shiftService.createShift(shift, hotelId, userId));
+        return Result.success(shiftService.createShift(dto, hotelId, userId));
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "更新交班草稿")
-    public Result<SysShift> update(@PathVariable Long id, @RequestBody SysShift shift) {
-        return Result.success(shiftService.updateShift(id, shift));
+    public Result<SysShiftVO> update(@PathVariable Long id, @RequestBody SysShiftDTO dto) {
+        return Result.success(shiftService.updateShift(id, dto));
     }
 
     @OperationLog(module = "交班管理", action = "提交交班", targetType = "交班单")
     @PostMapping("/{id}/submit")
     @Operation(summary = "提交交班")
-    public Result<SysShift> submit(@PathVariable Long id) {
+    public Result<SysShiftVO> submit(@PathVariable Long id) {
         return Result.success(shiftService.submitShift(id));
     }
 
@@ -56,7 +57,7 @@ public class ShiftController {
     @OperationLog(module = "交班管理", action = "接收交班", targetType = "交班单")
     @PostMapping("/{id}/accept")
     @Operation(summary = "接收交班")
-    public Result<SysShift> accept(@PathVariable Long id) {
+    public Result<SysShiftVO> accept(@PathVariable Long id) {
         Long userId = UserContext.getUserId();
         return Result.success(shiftService.acceptShift(id, userId));
     }
@@ -64,39 +65,39 @@ public class ShiftController {
     @OperationLog(module = "交班管理", action = "确认交班", targetType = "交班单")
     @PostMapping("/{id}/confirm")
     @Operation(summary = "确认交班")
-    public Result<SysShift> confirm(@PathVariable Long id) {
+    public Result<SysShiftVO> confirm(@PathVariable Long id) {
         return Result.success(shiftService.confirmShift(id));
     }
 
     @PostMapping("/{id}/reject")
     @Operation(summary = "驳回交班")
-    public Result<SysShift> reject(@PathVariable Long id, @RequestParam String reason) {
+    public Result<SysShiftVO> reject(@PathVariable Long id, @RequestParam String reason) {
         return Result.success(shiftService.rejectShift(id, reason));
     }
 
     @GetMapping
     @Operation(summary = "查询交班列表")
-    public Result<List<SysShift>> list(@RequestParam(required = false) String status) {
+    public Result<List<SysShiftVO>> list(@RequestParam(required = false) String status) {
         Long hotelId = UserContext.getHotelId();
         return Result.success(shiftService.listShifts(hotelId, status));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "查询交班详情")
-    public Result<SysShift> get(@PathVariable Long id) {
+    public Result<SysShiftVO> get(@PathVariable Long id) {
         return Result.success(shiftService.getShift(id));
     }
 
     @GetMapping("/pending")
     @Operation(summary = "查询待接收交班")
-    public Result<List<SysShift>> listPending() {
+    public Result<List<SysShiftVO>> listPending() {
         Long hotelId = UserContext.getHotelId();
         return Result.success(shiftService.listPendingShifts(hotelId));
     }
 
     @GetMapping("/statistics")
     @Operation(summary = "获取当班统计")
-    public Result<SysShift> statistics(
+    public Result<SysShiftVO> statistics(
             @RequestParam(required = false) String startTime,
             @RequestParam(required = false) String endTime) {
         Long hotelId = UserContext.getHotelId();
@@ -109,7 +110,7 @@ public class ShiftController {
 
     @GetMapping("/messages")
     @Operation(summary = "查询消息列表")
-    public Result<List<SysShiftMessage>> listMessages() {
+    public Result<List<SysShiftMessageVO>> listMessages() {
         Long userId = UserContext.getUserId();
         return Result.success(shiftService.listMessages(userId));
     }
@@ -123,7 +124,7 @@ public class ShiftController {
 
     @GetMapping("/notify-config")
     @Operation(summary = "获取通知配置")
-    public Result<List<SysShiftNotifyConfig>> getNotifyConfig() {
+    public Result<List<SysShiftNotifyConfigVO>> getNotifyConfig() {
         Long hotelId = UserContext.getHotelId();
         return Result.success(shiftService.getNotifyConfig(hotelId));
     }
@@ -151,7 +152,7 @@ public class ShiftController {
     @OperationLog(module = "交班管理", action = "交班核对", targetType = "交班单")
     @PostMapping("/{shiftId}/verify")
     @Operation(summary = "交班核对", description = "核对系统统计数据与实际交接金额")
-    public Result<SysShift> verifyShift(
+    public Result<SysShiftVO> verifyShift(
             @PathVariable Long shiftId,
             @RequestParam BigDecimal actualCash,
             @RequestParam BigDecimal actualPos,
@@ -175,7 +176,7 @@ public class ShiftController {
      */
     @PostMapping("/{shiftId}/actual-amounts")
     @Operation(summary = "保存实际交接金额", description = "保存实际交接金额，用于交班核对")
-    public Result<SysShift> saveActualAmounts(
+    public Result<SysShiftVO> saveActualAmounts(
             @PathVariable Long shiftId,
             @RequestParam BigDecimal actualCash,
             @RequestParam BigDecimal actualPos,
@@ -195,7 +196,7 @@ public class ShiftController {
      */
     @GetMapping("/{shiftId}/report")
     @Operation(summary = "获取交班报表", description = "生成交班报表，包含详细统计信息")
-    public Result<SysShift> getShiftReport(@PathVariable Long shiftId) {
+    public Result<SysShiftVO> getShiftReport(@PathVariable Long shiftId) {
         return Result.success(shiftService.getShiftReport(shiftId));
     }
 }

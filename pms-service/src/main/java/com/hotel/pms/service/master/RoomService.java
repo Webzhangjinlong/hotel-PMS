@@ -841,6 +841,31 @@ public class RoomService extends BaseService<Room, RoomMapper> {
         
         return reservationMapper.selectList(wrapper);
     }
+
+    /**
+     * 获取冲突预订信息（VO 形式，供 Controller 直接返回，避免暴露 Entity）
+     *
+     * @param roomId 房间ID
+     * @param checkInDate 入住日期
+     * @param checkOutDate 离店日期
+     * @param excludeReservationId 排除的预订ID（编辑时使用，可选）
+     * @return 冲突预订的字段映射列表
+     */
+    public java.util.List<java.util.Map<String, Object>> getConflictReservationsVO(Long roomId, LocalDate checkInDate, LocalDate checkOutDate, Long excludeReservationId) {
+        java.util.List<Reservation> conflicts = getConflictReservations(roomId, checkInDate, checkOutDate, excludeReservationId);
+        java.util.List<java.util.Map<String, Object>> list = new java.util.ArrayList<>();
+        for (Reservation res : conflicts) {
+            java.util.Map<String, Object> info = new java.util.HashMap<>();
+            info.put("reservationId", res.getId());
+            info.put("reservationNo", res.getReservationNo());
+            info.put("guestName", res.getGuestName());
+            info.put("checkInDate", res.getCheckInDate() != null ? res.getCheckInDate().toString() : null);
+            info.put("checkOutDate", res.getCheckOutDate() != null ? res.getCheckOutDate().toString() : null);
+            info.put("status", res.getStatus());
+            list.add(info);
+        }
+        return list;
+    }
 }
 
 

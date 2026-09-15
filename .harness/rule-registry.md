@@ -11,15 +11,15 @@
 |---|------|------|----------|------|
 | R01 | 金额一律 `NUMERIC(12,2)`/BigDecimal，禁止 float/double | ArchUnit `business_fields_must_not_be_float_or_double`（entity+dto） | `mvn verify` | ✅ 生效 |
 | R02 | 分层依赖方向 Controller→Service→Mapper，禁止反向 | ArchUnit `layered_dependencies`（com.hotel.pms..controller/service/dao.mapper） | `mvn verify` | ✅ 生效 |
-| R03 | Controller 不得直调 Mapper | ArchUnit `controller_never_touches_mapper` | `mvn verify` | ⏳ 存量违规豁免（V-01） |
-| R04 | Controller 不得直用 Entity（应经 Service + DTO/VO） | ArchUnit `controller_never_uses_entity` | `mvn verify` | ⏳ 存量违规豁免（V-02） |
+| R03 | Controller 不得直调 Mapper | ArchUnit `controller_never_touches_mapper` | `mvn verify` | ✅ 生效（V-01 豁免已清零） |
+| R04 | Controller 不得直用 Entity（应经 Service + DTO/VO） | ArchUnit `controller_never_uses_entity` | `mvn verify` | ✅ 生效（V-02 豁免已清零） |
 | R05 | Controller 命名 `*Controller` | ArchUnit `controller_naming` | `mvn verify` | ✅ 生效 |
 | R06 | Mapper 命名 `*Mapper` | ArchUnit `mapper_naming` | `mvn verify` | ✅ 生效 |
 | R07 | Service 命名 `*Service`（顶层类，config 基础设施 `*Helper` 白名单） | ArchUnit `service_naming` | `mvn verify` | ✅ 生效 |
 | R08 | Service 不得依赖 Controller | ArchUnit `service_never_touches_controller` | `mvn verify` | ✅ 生效 |
 | R09 | Controller 不得依赖其他 Controller（ExceptionHandler 除外） | ArchUnit `controller_never_touches_controller` | `mvn verify` | ✅ 生效 |
-| R10 | **多酒店隔离：禁止硬编码 hotel_id（如 1L）** | 代码审查 + 静态扫描（Grep 门禁待建） | CI 冒烟 + 人工复查 | ⏳ 存量违规（V-03）待修复 |
-| R11 | 跨业务域禁止直调他人 Mapper（走对方 Service） | 文档约束（存量 ReportServiceImpl 违规登记） | 代码审查 | ⏳ 待收紧（V-05） |
+| R10 | **多酒店隔离：禁止硬编码 hotel_id（如 1L）** | 代码审查 + 静态扫描（Grep 门禁待建） | CI 冒烟 + 人工复查 | ✅ 生效（V-03/V-06 已修复） |
+| R11 | 跨业务域禁止直调他人 Mapper（走对方 Service） | 文档约束（存量违规已收敛，跨域调用按 rule-registry 登记） | 代码审查 | ✅ 生效（V-04 死代码已清除） |
 | R12 | 结构变更只走 Flyway，禁止改已合入脚本 | Flyway checksum + `db/migration/V*.sql` | `mvn verify`（迁移校验） | ✅ 生效 |
 | R13 | 接口统一返回 `Result<T>`；分页统一 `PageRequest/PageResponse` | 代码约定 + 审查 | 人工复查 | ✅ 生效（约定） |
 | R14 | 关键写操作留操作日志（`@OperationLog` + AOP） | OperationLogAspect（44 个注解已接入） | 运行日志 + 审查 | ✅ 生效 |
@@ -31,13 +31,13 @@
 
 | 编号 | 违规描述 | 位置 | 对应规则 | 治理方式 | 状态 |
 |------|----------|------|----------|----------|------|
-| V-01 | Controller 直调 Mapper | `UserController`（SysAccountMapper、SysUserRoleMapper） | R03 | 抽到 Service 层，ArchUnit 豁免删除 | ⏳ 待治理 |
-| V-02 | Controller 直用 Entity | `MemberController`/`RoomController`/`NightAuditArchiveController`/`OperationLogController`/`PermissionController`/`PoliceUploadController`/`ShiftController`/`UserController`（8 个类，ArchUnit 实测 7 处调用 + 7 处 import） | R04 | 经 Service 返回 DTO/VO | ⏳ 待治理 |
-| V-03 | 硬编码 hotelId=1L | `ReportServiceImpl` 8 处（getShiftReport/getEntryDetail/getEntrySummary/getEntryTotal/getPaymentDetail/getPaymentSummary/getTransferReport/getChargeBackAdjust/getCheckoutActualStats/getCheckoutActualDetail） | R10 | 改用 `UserContext.getHotelId()` | ⏳ 待治理 |
-| V-04 | 报表服务跨域直调 Mapper | `ReportServiceImpl` 直调 DepositMapper/MemberMapper/SysShiftMapper 等 | R11 | 收敛为走对应 Service 或显式登记例外 | ⏳ 待收紧 |
-| V-05 | 源码目录混入 `.bak`/`.backup` 文件 | 全仓约 20+ 个（`*.bak`、`*.backup`、`*.backup2`~`*.backup6`） | AGENTS.md DO NOT | 确认无用后清理 | ⏳ 待治理 |
-| V-06 | 前端硬编码 hotelId=1 | `pms-web/src/views/reports/EnhancedReport.vue`（queryParams.hotelId=1） | R10 | 从登录态/路由上下文取当前酒店 | ⏳ 待治理 |
-| V-07 | 前端引用不存在的 API 导出 | `EnhancedReport.vue` 导入 `getFullReport` 而 `api/report.js` 未导出（存量 bug，构建失败） | CI frontend-ci | **已修复**（report.js 补 getFullReport → /api/v1/metrics/full-report） | ✅ 已修复 |
+| V-01 | Controller 直调 Mapper | `UserController`（SysAccountMapper、SysUserRoleMapper） | R03 | 新建 SysUserService/SysUserServiceImpl 收口用户管理，Controller 只依赖 Service；ArchUnit 豁免已删除 | ✅ 已治理 |
+| V-02 | Controller 直用 Entity | 8 个 Controller（Member/Room/NightAuditArchive/OperationLog/Permission/PoliceUpload/Shift/User） | R04 | 全部改经 Service 返回 DTO/VO（新增 SysAccountVO/DTO、SysPermissionVO/DTO、OperationLogVO、PoliceUploadRecordVO、NightAuditArchiveVO、SysShiftVO/DTO、SysShiftMessageVO、SysShiftNotifyConfigVO），Controller 入参 Entity→DTO、返回 Entity→VO；ArchUnit 豁免已全部删除 | ✅ 已治理 |
+| V-03 | 硬编码 hotelId=1L | `ReportServiceImpl` 8 处 | R10 | 12 个报表方法签名加 hotelId 参数，Controller 从 UserContext.getHotelId() 传入 | ✅ 已治理 |
+| V-04 | 报表服务跨域直调 Mapper | `ReportServiceImpl` 直调 DepositMapper/MemberMapper/SysShiftMapper 等 | R11 | 核验为**死代码**（5 个 Mapper 字段只声明未调用），已删除 | ✅ 已治理（实为死代码） |
+| V-05 | 源码目录混入 `.bak`/`.backup` 文件 | 全仓 70 个（`*.bak`、`*.backup`、`*.backup2`~`*.backup6`） | AGENTS.md DO NOT | 逐一核验有正式文件后全部删除 | ✅ 已治理 |
+| V-06 | 前端硬编码 hotelId=1 | `pms-web/src/views/reports/EnhancedReport.vue`（queryParams.hotelId=1） | R10 | 改为从 user store 取 `userStore.hotelId` | ✅ 已治理 |
+| V-07 | 前端引用不存在的 API 导出 | `EnhancedReport.vue` 导入 `getFullReport` 而 `api/report.js` 未导出（存量 bug，构建失败） | CI frontend-ci | 已修复（report.js 补 getFullReport → /api/v1/metrics/full-report） | ✅ 已修复 |
 
 ## 规则注册流程
 

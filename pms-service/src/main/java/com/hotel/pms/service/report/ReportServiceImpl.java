@@ -23,23 +23,13 @@ public class ReportServiceImpl implements ReportService {
     @Autowired
     private FinTransactionMapper transactionMapper;
     
-    @Autowired
-    private FolioMapper folioMapper;
     
-    @Autowired
-    private StayMapper stayMapper;
     
-    @Autowired
-    private DepositMapper depositMapper;
     
-    @Autowired
-    private MemberMapper memberMapper;
     
-    @Autowired
-    private SysShiftMapper shiftMapper;
     
     @Override
-    public Map<String, Object> getShiftReport(LocalDate businessDate, String shift, Long operatorId) {
+    public Map<String, Object> getShiftReport(Long hotelId, LocalDate businessDate, String shift, Long operatorId) {
         Map<String, Object> result = new HashMap<>();
         
         // 构建时间范围
@@ -48,7 +38,7 @@ public class ReportServiceImpl implements ReportService {
         
         // 构建查询条件
         LambdaQueryWrapper<FinTransaction> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FinTransaction::getHotelId, 1L) // 默认酒店ID
+        wrapper.eq(FinTransaction::getHotelId, hotelId) // 默认酒店ID
                .ge(FinTransaction::getCreatedAt, startTime)
                .le(FinTransaction::getCreatedAt, endTime);
         
@@ -351,13 +341,13 @@ public class ReportServiceImpl implements ReportService {
     // ==================== 其他报表方法 ====================
     
     @Override
-    public Map<String, Object> getEntryDetail(LocalDate businessDate, String shift, Long operatorId) {
+    public Map<String, Object> getEntryDetail(Long hotelId, LocalDate businessDate, String shift, Long operatorId) {
         Map<String, Object> result = new HashMap<>();
         LocalDateTime startTime = buildStartTime(businessDate, shift);
         LocalDateTime endTime = buildEndTime(businessDate, shift);
         
         LambdaQueryWrapper<FinTransaction> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FinTransaction::getHotelId, 1L)
+        wrapper.eq(FinTransaction::getHotelId, hotelId)
                .ge(FinTransaction::getCreatedAt, startTime)
                .le(FinTransaction::getCreatedAt, endTime)
                .in(FinTransaction::getType, "DEPOSIT", "EXTRA");
@@ -374,13 +364,13 @@ public class ReportServiceImpl implements ReportService {
     }
     
     @Override
-    public Map<String, Object> getEntrySummary(LocalDate businessDate, String shift, Long operatorId) {
+    public Map<String, Object> getEntrySummary(Long hotelId, LocalDate businessDate, String shift, Long operatorId) {
         Map<String, Object> result = new HashMap<>();
         LocalDateTime startTime = buildStartTime(businessDate, shift);
         LocalDateTime endTime = buildEndTime(businessDate, shift);
         
         LambdaQueryWrapper<FinTransaction> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FinTransaction::getHotelId, 1L)
+        wrapper.eq(FinTransaction::getHotelId, hotelId)
                .ge(FinTransaction::getCreatedAt, startTime)
                .le(FinTransaction::getCreatedAt, endTime)
                .in(FinTransaction::getType, "DEPOSIT", "EXTRA");
@@ -417,18 +407,18 @@ public class ReportServiceImpl implements ReportService {
     }
     
     @Override
-    public Map<String, Object> getEntryTotal(LocalDate businessDate, String shift, Long operatorId) {
-        return getEntrySummary(businessDate, shift, operatorId);
+    public Map<String, Object> getEntryTotal(Long hotelId, LocalDate businessDate, String shift, Long operatorId) {
+        return getEntrySummary(hotelId, businessDate, shift, operatorId);
     }
     
     @Override
-    public Map<String, Object> getPaymentDetail(LocalDate businessDate, String shift, Long operatorId) {
+    public Map<String, Object> getPaymentDetail(Long hotelId, LocalDate businessDate, String shift, Long operatorId) {
         Map<String, Object> result = new HashMap<>();
         LocalDateTime startTime = buildStartTime(businessDate, shift);
         LocalDateTime endTime = buildEndTime(businessDate, shift);
         
         LambdaQueryWrapper<FinTransaction> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FinTransaction::getHotelId, 1L)
+        wrapper.eq(FinTransaction::getHotelId, hotelId)
                .ge(FinTransaction::getCreatedAt, startTime)
                .le(FinTransaction::getCreatedAt, endTime)
                .eq(FinTransaction::getType, "PAYMENT");
@@ -445,13 +435,13 @@ public class ReportServiceImpl implements ReportService {
     }
     
     @Override
-    public Map<String, Object> getPaymentSummary(LocalDate businessDate, String shift, Long operatorId) {
+    public Map<String, Object> getPaymentSummary(Long hotelId, LocalDate businessDate, String shift, Long operatorId) {
         Map<String, Object> result = new HashMap<>();
         LocalDateTime startTime = buildStartTime(businessDate, shift);
         LocalDateTime endTime = buildEndTime(businessDate, shift);
         
         LambdaQueryWrapper<FinTransaction> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FinTransaction::getHotelId, 1L)
+        wrapper.eq(FinTransaction::getHotelId, hotelId)
                .ge(FinTransaction::getCreatedAt, startTime)
                .le(FinTransaction::getCreatedAt, endTime)
                .eq(FinTransaction::getType, "PAYMENT");
@@ -478,13 +468,13 @@ public class ReportServiceImpl implements ReportService {
     }
     
     @Override
-    public Map<String, Object> getTransferReport(LocalDate businessDate, String shift, Long operatorId) {
+    public Map<String, Object> getTransferReport(Long hotelId, LocalDate businessDate, String shift, Long operatorId) {
         Map<String, Object> result = new HashMap<>();
         LocalDateTime startTime = buildStartTime(businessDate, shift);
         LocalDateTime endTime = buildEndTime(businessDate, shift);
         
         LambdaQueryWrapper<FinTransaction> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FinTransaction::getHotelId, 1L)
+        wrapper.eq(FinTransaction::getHotelId, hotelId)
                .ge(FinTransaction::getCreatedAt, startTime)
                .le(FinTransaction::getCreatedAt, endTime)
                .eq(FinTransaction::getType, "TRANSFER");
@@ -501,13 +491,13 @@ public class ReportServiceImpl implements ReportService {
     }
     
     @Override
-    public Map<String, Object> getChargeBackAdjust(LocalDate businessDate, String shift, Long operatorId) {
+    public Map<String, Object> getChargeBackAdjust(Long hotelId, LocalDate businessDate, String shift, Long operatorId) {
         Map<String, Object> result = new HashMap<>();
         LocalDateTime startTime = buildStartTime(businessDate, shift);
         LocalDateTime endTime = buildEndTime(businessDate, shift);
         
         LambdaQueryWrapper<FinTransaction> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FinTransaction::getHotelId, 1L)
+        wrapper.eq(FinTransaction::getHotelId, hotelId)
                .ge(FinTransaction::getCreatedAt, startTime)
                .le(FinTransaction::getCreatedAt, endTime)
                .in(FinTransaction::getType, "REVERSAL", "REFUND");
@@ -524,13 +514,13 @@ public class ReportServiceImpl implements ReportService {
     }
     
     @Override
-    public Map<String, Object> getCheckoutActualStats(LocalDate businessDate, String shift, Long operatorId) {
+    public Map<String, Object> getCheckoutActualStats(Long hotelId, LocalDate businessDate, String shift, Long operatorId) {
         Map<String, Object> result = new HashMap<>();
         LocalDateTime startTime = buildStartTime(businessDate, shift);
         LocalDateTime endTime = buildEndTime(businessDate, shift);
         
         LambdaQueryWrapper<FinTransaction> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FinTransaction::getHotelId, 1L)
+        wrapper.eq(FinTransaction::getHotelId, hotelId)
                .ge(FinTransaction::getCreatedAt, startTime)
                .le(FinTransaction::getCreatedAt, endTime)
                .eq(FinTransaction::getType, "PAYMENT");
@@ -551,12 +541,12 @@ public class ReportServiceImpl implements ReportService {
     }
     
     @Override
-    public Map<String, Object> getCheckoutActualDetail(LocalDate businessDate, String shift, Long operatorId) {
-        return getPaymentDetail(businessDate, shift, operatorId);
+    public Map<String, Object> getCheckoutActualDetail(Long hotelId, LocalDate businessDate, String shift, Long operatorId) {
+        return getPaymentDetail(hotelId, businessDate, shift, operatorId);
     }
     
     @Override
-    public Map<String, Object> getProductSalesSummary(LocalDate businessDate, String shift, Long operatorId) {
+    public Map<String, Object> getProductSalesSummary(Long hotelId, LocalDate businessDate, String shift, Long operatorId) {
         Map<String, Object> result = new HashMap<>();
         // TODO: 实现商品销售汇总逻辑
         result.put("summary", new ArrayList<>());
@@ -565,7 +555,7 @@ public class ReportServiceImpl implements ReportService {
     }
     
     @Override
-    public Map<String, Object> getProductSalesDetail(LocalDate businessDate, String shift, Long operatorId) {
+    public Map<String, Object> getProductSalesDetail(Long hotelId, LocalDate businessDate, String shift, Long operatorId) {
         Map<String, Object> result = new HashMap<>();
         // TODO: 实现商品销售明细逻辑
         result.put("list", new ArrayList<>());

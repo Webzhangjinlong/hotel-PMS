@@ -1,19 +1,19 @@
 # 功能开发与存量治理 Backlog
 
 > 来源：doc/05-功能开发进度.md + rule-registry 存量违规登记。
-> 功能开发按优先级执行；存量违规治理（V-01~V-05）优先于新功能（先让约束体系干净）。
+> 功能开发按优先级执行；存量违规治理（V-01~V-07）已全部完成（2026-09-15），约束体系已收敛。
 
 ## 存量治理（P0，约束体系收敛）
 
-| 编号 | 任务 | 说明 | 对应规则 | 优先级 | 预计工时 |
-|------|------|------|----------|--------|----------|
-| V-01 | Controller 直调 Mapper 治理 | `UserController` 中 SysAccountMapper/SysUserRoleMapper 调用抽到 Service | R03 | P0 | 0.5天 |
-| V-02 | Controller 直用 Entity 治理 | 8 个 Controller（Member/Room/NightAuditArchive/OperationLog/Permission/PoliceUpload/Shift/User）的 Entity 引用改为 Service + DTO/VO | R04 | P0 | 1.5天 |
-| V-03 | 报表服务 hotel_id 硬编码治理 | `ReportServiceImpl` 8 处 `1L` 改为 `UserContext.getHotelId()` | R10 | P0 | 0.5天 |
-| V-04 | 报表服务跨域 Mapper 调用收敛 | DepositMapper/MemberMapper/SysShiftMapper 等改走对应 Service 或登记例外 | R11 | P1 | 1天 |
-| V-05 | 清理源码目录 `.bak`/`.backup` 文件 | 确认无用后删除（约 20+ 个），.gitignore 已防护 | DO NOT | P1 | 0.5天 |
-| V-06 | 前端硬编码 hotelId 治理 | `EnhancedReport.vue` queryParams.hotelId=1 改为登录态/上下文取值 | R10 | P0 | 0.5天 |
-| V-07 | 前端缺失 API 导出修复 | report.js 补 `getFullReport`（→ /api/v1/metrics/full-report） | CI | 已完成 | 已修复 ✅ |
+| 编号 | 任务 | 说明 | 对应规则 | 优先级 | 状态 |
+|------|------|------|----------|--------|------|
+| V-01 | Controller 直调 Mapper 治理 | `UserController` 中 SysAccountMapper/SysUserRoleMapper 调用抽到 Service（新建 SysUserService/SysUserServiceImpl） | R03 | P0 | ✅ 已完成 |
+| V-02 | Controller 直用 Entity 治理 | 8 个 Controller（Member/Room/NightAuditArchive/OperationLog/Permission/PoliceUpload/Shift/User）的 Entity 引用改为 Service + DTO/VO（新增 9 个 VO/DTO） | R04 | P0 | ✅ 已完成 |
+| V-03 | 报表服务 hotel_id 硬编码治理 | `ReportServiceImpl` 8 处 `1L` 改为 hotelId 参数（12 个报表方法），Controller 从 UserContext 传入 | R10 | P0 | ✅ 已完成 |
+| V-04 | 报表服务跨域 Mapper 调用收敛 | DepositMapper/MemberMapper/SysShiftMapper 等核验为死代码，已删除 | R11 | P1 | ✅ 已完成（实为死代码） |
+| V-05 | 清理源码目录 `.bak`/`.backup` 文件 | 确认无用后删除（实际 70 个），.gitignore 已防护 | DO NOT | P1 | ✅ 已完成 |
+| V-06 | 前端硬编码 hotelId 治理 | `EnhancedReport.vue` queryParams.hotelId=1 改为 user store 取值 | R10 | P0 | ✅ 已完成 |
+| V-07 | 前端缺失 API 导出修复 | report.js 补 `getFullReport`（→ /api/v1/metrics/full-report） | CI | 已完成 | ✅ 已修复 |
 
 ## 功能开发（参考 doc/05-功能开发进度.md 短期计划）
 

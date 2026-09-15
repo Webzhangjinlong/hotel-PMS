@@ -1,5 +1,6 @@
 package com.hotel.pms.controller.report;
 
+import com.hotel.pms.api.config.UserContext;
 import com.hotel.pms.service.report.ReportService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -27,7 +28,8 @@ public class ReportController {
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate businessDate,
             @RequestParam String shift,
             @RequestParam(required = false) Long operatorId) {
-        return reportService.getShiftReport(businessDate, shift, operatorId);
+        Long hotelId = UserContext.getHotelId();
+        return reportService.getShiftReport(hotelId, businessDate, shift, operatorId);
     }
     
     /**
@@ -38,7 +40,8 @@ public class ReportController {
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate businessDate,
             @RequestParam String shift,
             @RequestParam(required = false) Long operatorId) {
-        return reportService.getEntryDetail(businessDate, shift, operatorId);
+        Long hotelId = UserContext.getHotelId();
+        return reportService.getEntryDetail(hotelId, businessDate, shift, operatorId);
     }
     
     /**
@@ -49,7 +52,8 @@ public class ReportController {
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate businessDate,
             @RequestParam String shift,
             @RequestParam(required = false) Long operatorId) {
-        return reportService.getEntrySummary(businessDate, shift, operatorId);
+        Long hotelId = UserContext.getHotelId();
+        return reportService.getEntrySummary(hotelId, businessDate, shift, operatorId);
     }
     
     /**
@@ -60,7 +64,8 @@ public class ReportController {
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate businessDate,
             @RequestParam String shift,
             @RequestParam(required = false) Long operatorId) {
-        return reportService.getEntryTotal(businessDate, shift, operatorId);
+        Long hotelId = UserContext.getHotelId();
+        return reportService.getEntryTotal(hotelId, businessDate, shift, operatorId);
     }
     
     /**
@@ -71,7 +76,8 @@ public class ReportController {
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate businessDate,
             @RequestParam String shift,
             @RequestParam(required = false) Long operatorId) {
-        return reportService.getPaymentDetail(businessDate, shift, operatorId);
+        Long hotelId = UserContext.getHotelId();
+        return reportService.getPaymentDetail(hotelId, businessDate, shift, operatorId);
     }
     
     /**
@@ -82,7 +88,8 @@ public class ReportController {
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate businessDate,
             @RequestParam String shift,
             @RequestParam(required = false) Long operatorId) {
-        return reportService.getPaymentSummary(businessDate, shift, operatorId);
+        Long hotelId = UserContext.getHotelId();
+        return reportService.getPaymentSummary(hotelId, businessDate, shift, operatorId);
     }
     
     /**
@@ -93,7 +100,8 @@ public class ReportController {
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate businessDate,
             @RequestParam String shift,
             @RequestParam(required = false) Long operatorId) {
-        return reportService.getTransferReport(businessDate, shift, operatorId);
+        Long hotelId = UserContext.getHotelId();
+        return reportService.getTransferReport(hotelId, businessDate, shift, operatorId);
     }
     
     /**
@@ -104,7 +112,8 @@ public class ReportController {
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate businessDate,
             @RequestParam String shift,
             @RequestParam(required = false) Long operatorId) {
-        return reportService.getChargeBackAdjust(businessDate, shift, operatorId);
+        Long hotelId = UserContext.getHotelId();
+        return reportService.getChargeBackAdjust(hotelId, businessDate, shift, operatorId);
     }
     
     /**
@@ -115,7 +124,8 @@ public class ReportController {
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate businessDate,
             @RequestParam String shift,
             @RequestParam(required = false) Long operatorId) {
-        return reportService.getCheckoutActualStats(businessDate, shift, operatorId);
+        Long hotelId = UserContext.getHotelId();
+        return reportService.getCheckoutActualStats(hotelId, businessDate, shift, operatorId);
     }
     
     /**
@@ -126,7 +136,8 @@ public class ReportController {
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate businessDate,
             @RequestParam String shift,
             @RequestParam(required = false) Long operatorId) {
-        return reportService.getCheckoutActualDetail(businessDate, shift, operatorId);
+        Long hotelId = UserContext.getHotelId();
+        return reportService.getCheckoutActualDetail(hotelId, businessDate, shift, operatorId);
     }
     
     /**
@@ -137,7 +148,8 @@ public class ReportController {
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate businessDate,
             @RequestParam String shift,
             @RequestParam(required = false) Long operatorId) {
-        return reportService.getProductSalesSummary(businessDate, shift, operatorId);
+        Long hotelId = UserContext.getHotelId();
+        return reportService.getProductSalesSummary(hotelId, businessDate, shift, operatorId);
     }
     
     /**
@@ -148,6 +160,7 @@ public class ReportController {
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate businessDate,
             @RequestParam String shift,
             @RequestParam(required = false) Long operatorId) {
-        return reportService.getProductSalesDetail(businessDate, shift, operatorId);
+        Long hotelId = UserContext.getHotelId();
+        return reportService.getProductSalesDetail(hotelId, businessDate, shift, operatorId);
     }
 }

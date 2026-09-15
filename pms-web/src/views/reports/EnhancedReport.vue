@@ -161,11 +161,15 @@ import { ref, reactive, onMounted, watch, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Download } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
+import { useUserStore } from '@/stores/user'
 import { getFullReport } from '@/api/report'
+
+// 用户状态（取当前登录酒店 ID）
+const userStore = useUserStore()
 
 // 查询参数
 const queryParams = reactive({
-  hotelId: 1, // 默认酒店ID
+  hotelId: null, // 当前登录酒店（onMounted 从登录态获取）
   startDate: '',
   endDate: ''
 })
@@ -500,6 +504,9 @@ window.addEventListener('resize', () => {
 
 // 初始化加载数据
 onMounted(() => {
+  // 从登录态获取当前酒店 ID
+  queryParams.hotelId = userStore.hotelId || null
+
   // 设置默认日期范围（最近7天）
   const endDate = new Date()
   const startDate = new Date()

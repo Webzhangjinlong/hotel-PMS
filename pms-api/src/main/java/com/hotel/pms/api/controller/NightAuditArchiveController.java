@@ -1,9 +1,9 @@
 package com.hotel.pms.api.controller;
 
+import com.hotel.pms.common.dto.NightAuditArchiveVO;
 import com.hotel.pms.common.dto.NightAuditQueryDTO;
 import com.hotel.pms.common.result.PageResponse;
 import com.hotel.pms.common.result.Result;
-import com.hotel.pms.dao.entity.NightAuditArchive;
 import com.hotel.pms.service.nightaudit.NightAuditArchiveService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -42,8 +42,8 @@ public class NightAuditArchiveController {
      */
     @GetMapping("/list")
     @Operation(summary = "查询归档数据", description = "分页查询归档的夜审数据")
-    public Result<PageResponse<NightAuditArchive>> getArchiveList(NightAuditQueryDTO queryDTO) {
-        PageResponse<NightAuditArchive> result = archiveService.getArchiveList(queryDTO);
+    public Result<PageResponse<NightAuditArchiveVO>> getArchiveList(NightAuditQueryDTO queryDTO) {
+        PageResponse<NightAuditArchiveVO> result = archiveService.getArchiveList(queryDTO);
         return Result.success(result);
     }
     

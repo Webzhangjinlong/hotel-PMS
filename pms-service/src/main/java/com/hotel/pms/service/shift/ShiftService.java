@@ -1,12 +1,17 @@
 package com.hotel.pms.service.shift;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.hotel.pms.common.dto.SysShiftDTO;
+import com.hotel.pms.common.dto.SysShiftMessageVO;
+import com.hotel.pms.common.dto.SysShiftNotifyConfigVO;
+import com.hotel.pms.common.dto.SysShiftVO;
 import com.hotel.pms.common.exception.BusinessException;
 import com.hotel.pms.common.result.ResultCode;
 import com.hotel.pms.dao.entity.*;
 import com.hotel.pms.dao.mapper.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +20,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -29,7 +35,9 @@ public class ShiftService {
     private final FinTransactionMapper finTransactionMapper;
     private final SysAccountMapper accountMapper;
     
-    public SysShift createShift(SysShift shift, Long hotelId, Long userId) {
+    public SysShiftVO createShift(SysShiftDTO dto, Long hotelId, Long userId) {
+        SysShift shift = new SysShift();
+        BeanUtils.copyProperties(dto, shift);
         shift.setHotelId(hotelId);
         shift.setOperatorId(userId);
         shift.setStatus("DRAFT");
@@ -41,10 +49,10 @@ public class ShiftService {
         }
         
         shiftMapper.insert(shift);
-        return shift;
+        return toVO(shift);
     }
     
-    public SysShift updateShift(Long id, SysShift shift) {
+    public SysShiftVO updateShift(Long id, SysShiftDTO dto) {
         SysShift existing = shiftMapper.selectById(id);
         if (existing == null) {
             throw new BusinessException(ResultCode.DATA_NOT_FOUND, "交班记录不存在");
@@ -52,12 +60,14 @@ public class ShiftService {
         if (!"DRAFT".equals(existing.getStatus())) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "只能编辑草稿状态的交班记录");
         }
+        SysShift shift = new SysShift();
+        BeanUtils.copyProperties(dto, shift);
         shift.setId(id);
         shiftMapper.updateById(shift);
-        return shiftMapper.selectById(id);
+        return toVO(shiftMapper.selectById(id));
     }
     
-    public SysShift submitShift(Long id) {
+    public SysShiftVO submitShift(Long id) {
         SysShift shift = shiftMapper.selectById(id);
         if (shift == null) {
             throw new BusinessException(ResultCode.DATA_NOT_FOUND, "交班记录不存在");
@@ -69,7 +79,7 @@ public class ShiftService {
         shift.setSubmitTime(LocalDateTime.now());
         shiftMapper.updateById(shift);
         sendNotification(shift, "SHIFT_SUBMIT");
-        return shift;
+        return toVO(shift);
     }
     
     public void deleteShift(Long id) {
@@ -83,7 +93,7 @@ public class ShiftService {
         shiftMapper.deleteById(id);
     }
     
-    public SysShift acceptShift(Long id, Long userId) {
+    public SysShiftVO acceptShift(Long id, Long userId) {
         SysShift shift = shiftMapper.selectById(id);
         if (shift == null) {
             throw new BusinessException(ResultCode.DATA_NOT_FOUND, "交班记录不存在");
@@ -96,10 +106,10 @@ public class ShiftService {
         shift.setAcceptTime(LocalDateTime.now());
         shiftMapper.updateById(shift);
         sendNotification(shift, "SHIFT_ACCEPT");
-        return shift;
+        return toVO(shift);
     }
     
-    public SysShift confirmShift(Long id) {
+    public SysShiftVO confirmShift(Long id) {
         SysShift shift = shiftMapper.selectById(id);
         if (shift == null) {
             throw new BusinessException(ResultCode.DATA_NOT_FOUND, "交班记录不存在");
@@ -111,10 +121,10 @@ public class ShiftService {
         shift.setConfirmTime(LocalDateTime.now());
         shiftMapper.updateById(shift);
         sendNotification(shift, "SHIFT_CONFIRM");
-        return shift;
+        return toVO(shift);
     }
     
-    public SysShift rejectShift(Long id, String reason) {
+    public SysShiftVO rejectShift(Long id, String reason) {
         SysShift shift = shiftMapper.selectById(id);
         if (shift == null) {
             throw new BusinessException(ResultCode.DATA_NOT_FOUND, "交班记录不存在");
@@ -127,35 +137,40 @@ public class ShiftService {
         shift.setRejectReason(reason);
         shiftMapper.updateById(shift);
         sendNotification(shift, "SHIFT_REJECT");
-        return shift;
+        return toVO(shift);
     }
     
-    public List<SysShift> listShifts(Long hotelId, String status) {
+    public List<SysShiftVO> listShifts(Long hotelId, String status) {
         LambdaQueryWrapper<SysShift> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysShift::getHotelId, hotelId);
         if (status != null && !status.isEmpty()) {
             wrapper.eq(SysShift::getStatus, status);
         }
         wrapper.orderByDesc(SysShift::getCreatedAt);
-        return shiftMapper.selectList(wrapper);
+        return shiftMapper.selectList(wrapper).stream()
+                .map(this::toVO)
+                .collect(Collectors.toList());
     }
     
-    public SysShift getShift(Long id) {
-        return shiftMapper.selectById(id);
+    public SysShiftVO getShift(Long id) {
+        SysShift shift = shiftMapper.selectById(id);
+        return shift == null ? null : toVO(shift);
     }
     
-    public List<SysShift> listPendingShifts(Long hotelId) {
+    public List<SysShiftVO> listPendingShifts(Long hotelId) {
         LambdaQueryWrapper<SysShift> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysShift::getHotelId, hotelId)
                .eq(SysShift::getStatus, "PENDING")
                .orderByDesc(SysShift::getCreatedAt);
-        return shiftMapper.selectList(wrapper);
+        return shiftMapper.selectList(wrapper).stream()
+                .map(this::toVO)
+                .collect(Collectors.toList());
     }
     
     /**
      * 获取当班统计数据
      */
-    public SysShift getStatistics(Long hotelId, Long userId, LocalDateTime startTime, LocalDateTime endTime) {
+    public SysShiftVO getStatistics(Long hotelId, Long userId, LocalDateTime startTime, LocalDateTime endTime) {
         SysShift stats = new SysShift();
         stats.setHotelId(hotelId);
         stats.setOperatorId(userId);
@@ -225,14 +240,16 @@ public class ShiftService {
         stats.setRefundAmount(refundAmount);
         stats.setTransactionCount(transactions.size());
         
-        return stats;
+        return toVO(stats);
     }
     
-    public List<SysShiftMessage> listMessages(Long userId) {
+    public List<SysShiftMessageVO> listMessages(Long userId) {
         LambdaQueryWrapper<SysShiftMessage> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysShiftMessage::getReceiverId, userId)
                .orderByDesc(SysShiftMessage::getCreatedAt);
-        return messageMapper.selectList(wrapper);
+        return messageMapper.selectList(wrapper).stream()
+                .map(this::toMessageVO)
+                .collect(Collectors.toList());
     }
     
     public void markMessageRead(Long id) {
@@ -244,11 +261,13 @@ public class ShiftService {
         }
     }
     
-    public List<SysShiftNotifyConfig> getNotifyConfig(Long hotelId) {
+    public List<SysShiftNotifyConfigVO> getNotifyConfig(Long hotelId) {
         LambdaQueryWrapper<SysShiftNotifyConfig> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysShiftNotifyConfig::getHotelId, hotelId)
                .eq(SysShiftNotifyConfig::getIsActive, true);
-        return notifyConfigMapper.selectList(wrapper);
+        return notifyConfigMapper.selectList(wrapper).stream()
+                .map(this::toConfigVO)
+                .collect(Collectors.toList());
     }
     
     public void saveNotifyConfig(Long hotelId, List<Long> userIds) {
@@ -340,12 +359,12 @@ public class ShiftService {
     }
     
     private void sendNotification(SysShift shift, String messageType) {
-        List<SysShiftNotifyConfig> configs = getNotifyConfig(shift.getHotelId());
+        List<SysShiftNotifyConfigVO> configs = getNotifyConfig(shift.getHotelId());
         List<Long> receiverIds = new ArrayList<>();
         if (shift.getReceiverId() != null) {
             receiverIds.add(shift.getReceiverId());
         }
-        for (SysShiftNotifyConfig config : configs) {
+        for (SysShiftNotifyConfigVO config : configs) {
             if (!receiverIds.contains(config.getUserId())) {
                 receiverIds.add(config.getUserId());
             }
@@ -394,7 +413,7 @@ public class ShiftService {
      * @param actualAlipay 实际支付宝金额
      * @return 核对结果
      */
-    public SysShift verifyShift(Long shiftId, BigDecimal actualCash, BigDecimal actualPos, 
+    public SysShiftVO verifyShift(Long shiftId, BigDecimal actualCash, BigDecimal actualPos, 
                                BigDecimal actualWechat, BigDecimal actualAlipay) {
         // 1. 查询交班记录
         SysShift shift = shiftMapper.selectById(shiftId);
@@ -421,7 +440,7 @@ public class ShiftService {
         // 5. 更新交班记录
         shiftMapper.updateById(shift);
         
-        return shift;
+        return toVO(shift);
     }
     
     /**
@@ -437,7 +456,7 @@ public class ShiftService {
      * @param actualAlipay 实际支付宝金额
      * @return 更新后的交班记录
      */
-    public SysShift saveActualAmounts(Long shiftId, BigDecimal actualCash, BigDecimal actualPos,
+    public SysShiftVO saveActualAmounts(Long shiftId, BigDecimal actualCash, BigDecimal actualPos,
                                      BigDecimal actualWechat, BigDecimal actualAlipay) {
         // 1. 查询交班记录
         SysShift shift = shiftMapper.selectById(shiftId);
@@ -457,7 +476,7 @@ public class ShiftService {
         log.info("保存实际交接金额: shiftId={}, 现金={}, POS={}, 微信={}, 支付宝={}", 
                 shiftId, actualCash, actualPos, actualWechat, actualAlipay);
         
-        return shift;
+        return toVO(shift);
     }
     
     /**
@@ -469,7 +488,7 @@ public class ShiftService {
      * @param shiftId 交班记录ID
      * @return 交班报表数据
      */
-    public SysShift getShiftReport(Long shiftId) {
+    public SysShiftVO getShiftReport(Long shiftId) {
         // 1. 查询交班记录
         SysShift shift = shiftMapper.selectById(shiftId);
         if (shift == null) {
@@ -486,7 +505,7 @@ public class ShiftService {
         log.info("生成交班报表: shiftId={}, 总金额={}, 现金差异={}, POS差异={}, 微信差异={}, 支付宝差异={}", 
                 shiftId, shift.getTotalAmount(), cashDiff, posDiff, wechatDiff, alipayDiff);
         
-        return shift;
+        return toVO(shift);
     }
     
     /**
@@ -506,5 +525,32 @@ public class ShiftService {
         
         // 2. 计算差异
         return actual.subtract(system);
+    }
+    
+    /**
+     * 交班实体转 VO
+     */
+    private SysShiftVO toVO(SysShift shift) {
+        SysShiftVO vo = new SysShiftVO();
+        BeanUtils.copyProperties(shift, vo);
+        return vo;
+    }
+    
+    /**
+     * 交班消息实体转 VO
+     */
+    private SysShiftMessageVO toMessageVO(SysShiftMessage message) {
+        SysShiftMessageVO vo = new SysShiftMessageVO();
+        BeanUtils.copyProperties(message, vo);
+        return vo;
+    }
+    
+    /**
+     * 通知配置实体转 VO
+     */
+    private SysShiftNotifyConfigVO toConfigVO(SysShiftNotifyConfig config) {
+        SysShiftNotifyConfigVO vo = new SysShiftNotifyConfigVO();
+        BeanUtils.copyProperties(config, vo);
+        return vo;
     }
 }

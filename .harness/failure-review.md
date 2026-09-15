@@ -5,6 +5,8 @@
 
 | 日期 | 场景/任务 | 失败现象 | 根因 | 修复动作 | 固化载体 | 状态 |
 |------|-----------|----------|------|----------|----------|------|
+| 2026-09-15 | 存量违规治理（V-01~V-07）收尾 | ArchUnit 豁免名单清零后回归：先修完所有 Controller 的 Entity/Mapper 引用，再删除豁免，`mvn test` 9/9 全绿 | 存量违规未清理时豁免名单是必要过渡，清理后必须全量回归确认无新违规 | 8 个 Controller 全部改经 Service + DTO/VO（新增 9 个 VO/DTO），Report 12 个方法 hotelId 参数化，删除 70 个备份文件，前端 hotelId 改 user store | ArchUnit R03/R04 豁免清零 + rule-registry/backlog 全部 ✅ | ✅ 已完成 |
+| 2026-09-15 | VO 生成脚本产物编译 | pms-common 编译失败：NightAuditArchiveVO 注释损坏（`/** * xxx */ */`）导致"非法的类型开始" | 生成脚本提取多行 javadoc 时未合并清理，闭合标记重复 | 修复脚本注释提取正则，批量修复全部生成 VO，重新编译通过 | gen_vo_from_entity.py + lessons L06 | ✅ 已修复 |
 | 2026-09-15 | Harness 约束集成（首次） | 审计发现存量违规：Controller 直调 Mapper/Entity 14 处、报表服务硬编码 hotelId=1L 8 处、源码目录混入 20+ 备份文件 | 项目此前未按分层/隔离约束开发 | 制定约束标准 + ArchUnit 守护 + 存量违规登记 rule-registry（V-01~V-06） | AGENTS.md / .harness/* / ArchitectureTest / CI | ✅ 已登记，按 backlog 治理 |
 | 2026-09-15 | 前端门禁验证 | `npm run build` 失败：EnhancedReport.vue 导入不存在的 `getFullReport` | 页面新增时未维护 api 层导出，且无前端 CI 门禁 | report.js 补齐 `getFullReport`（→ /api/v1/metrics/full-report），构建通过；登记 V-07 + lessons L05 | CI frontend-ci + report.js | ✅ 已修复 |
 

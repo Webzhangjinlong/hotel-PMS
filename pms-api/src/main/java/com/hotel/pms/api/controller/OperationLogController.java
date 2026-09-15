@@ -3,8 +3,8 @@ package com.hotel.pms.api.controller;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.hotel.pms.api.config.UserContext;
 import com.hotel.pms.common.dto.OperationLogQueryDTO;
+import com.hotel.pms.common.dto.OperationLogVO;
 import com.hotel.pms.common.result.Result;
-import com.hotel.pms.dao.entity.OperationLogEntity;
 import com.hotel.pms.service.system.OperationLogService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -30,9 +30,9 @@ public class OperationLogController {
      */
     @GetMapping
     @Operation(summary = "分页查询操作日志")
-    public Result<IPage<OperationLogEntity>> getOperationLogPage(OperationLogQueryDTO queryDTO) {
+    public Result<IPage<OperationLogVO>> getOperationLogPage(OperationLogQueryDTO queryDTO) {
         Long hotelId = UserContext.getHotelId();
-        IPage<OperationLogEntity> page = operationLogService.getOperationLogPage(hotelId, queryDTO);
+        IPage<OperationLogVO> page = operationLogService.getOperationLogPage(hotelId, queryDTO);
         return Result.success(page);
     }
     
@@ -41,8 +41,8 @@ public class OperationLogController {
      */
     @GetMapping("/{id}")
     @Operation(summary = "查询操作日志详情")
-    public Result<OperationLogEntity> getOperationLogById(@PathVariable Long id) {
-        OperationLogEntity log = operationLogService.getOperationLogById(id);
+    public Result<OperationLogVO> getOperationLogById(@PathVariable Long id) {
+        OperationLogVO log = operationLogService.getOperationLogById(id);
         return Result.success(log);
     }
 }

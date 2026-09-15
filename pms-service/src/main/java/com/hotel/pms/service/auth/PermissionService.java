@@ -2,10 +2,13 @@ package com.hotel.pms.service.auth;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.hotel.pms.common.dto.MenuVO;
+import com.hotel.pms.common.dto.SysPermissionDTO;
+import com.hotel.pms.common.dto.SysPermissionVO;
 import com.hotel.pms.dao.entity.SysPermission;
 import com.hotel.pms.dao.mapper.SysPermissionMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -34,32 +37,39 @@ public class PermissionService {
      * @param id 权限ID
      * @return 权限详情
      */
-    public SysPermission getPermission(Long id) {
-        return permissionMapper.selectById(id);
+    public SysPermissionVO getPermission(Long id) {
+        SysPermission permission = permissionMapper.selectById(id);
+        return permission == null ? null : toVO(permission);
     }
     
     /**
      * 创建权限
      * 
-     * @param permission 权限信息
+     * @param dto 权限信息
      * @return 权限信息
      */
-    public SysPermission createPermission(SysPermission permission) {
+    public SysPermissionVO createPermission(SysPermissionDTO dto) {
+        SysPermission permission = new SysPermission();
+        BeanUtils.copyProperties(dto, permission);
         permissionMapper.insert(permission);
         log.info("创建权限成功：permissionId={}, permissionCode={}", permission.getId(), permission.getPermissionCode());
-        return permission;
+        return toVO(permission);
     }
     
     /**
      * 更新权限
      * 
-     * @param permission 权限信息
+     * @param id  权限ID
+     * @param dto 权限信息
      * @return 权限信息
      */
-    public SysPermission updatePermission(SysPermission permission) {
+    public SysPermissionVO updatePermission(Long id, SysPermissionDTO dto) {
+        SysPermission permission = new SysPermission();
+        BeanUtils.copyProperties(dto, permission);
+        permission.setId(id);
         permissionMapper.updateById(permission);
-        log.info("更新权限成功：permissionId={}", permission.getId());
-        return permission;
+        log.info("更新权限成功：permissionId={}", id);
+        return toVO(permission);
     }
     
     /**
@@ -77,12 +87,14 @@ public class PermissionService {
      * 
      * @return 权限列表
      */
-    public List<SysPermission> listAllPermissions() {
+    public List<SysPermissionVO> listAllPermissions() {
         LambdaQueryWrapper<SysPermission> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysPermission::getDeleted, false)
                .eq(SysPermission::getStatus, "ACTIVE")
                .orderByAsc(SysPermission::getSortOrder);
-        return permissionMapper.selectList(wrapper);
+        return permissionMapper.selectList(wrapper).stream()
+                .map(this::toVO)
+                .collect(Collectors.toList());
     }
     
     /**
@@ -117,6 +129,15 @@ public class PermissionService {
         return buildMenuTree(menuPermissions, null);
     }
     
+    /**
+     * 权限实体转 VO
+     */
+    private SysPermissionVO toVO(SysPermission permission) {
+        SysPermissionVO vo = new SysPermissionVO();
+        BeanUtils.copyProperties(permission, vo);
+        return vo;
+    }
+
     /**
      * 构建菜单树
      * 
