@@ -24,7 +24,7 @@
 | R13 | 接口统一返回 `Result<T>`；分页统一 `PageRequest/PageResponse` | 代码约定 + 审查 | 人工复查 | ✅ 生效（约定） |
 | R14 | 关键写操作留操作日志（`@OperationLog` + AOP） | OperationLogAspect（44 个注解已接入） | 运行日志 + 审查 | ✅ 生效 |
 | R15 | 密码 BCrypt；JWT 无状态；登录失败 5 次锁定 30 分钟 | AuthService + JwtUtil | 接口实测 | ✅ 生效 |
-| R16 | CI 门禁：合入 main 前必须通过 backend-ci + frontend-ci | GitHub 分支保护 required status checks | PR 状态检查 | ⏳ 需远端仓库启用保护 |
+| R16 | CI 门禁：合入 main 前必须通过 backend-ci + frontend-ci | GitHub 分支保护 required status checks（strict=true, enforce_admins=true, 禁 force push/删除） | PR 状态检查 | ✅ 生效（2026-09-15 API 启用，仓库已公开） |
 | R17 | 本地全量验证 `tools/verify-local.ps1`（后端 mvn verify + 前端 build） | 脚本固化 | 退出码 0 = ALL GREEN | ✅ 生效 |
 
 ## 存量违规登记（治理 Backlog 对应项）
