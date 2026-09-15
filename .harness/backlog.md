@@ -54,3 +54,24 @@
 | 接口文档完善 | P1 | 3天 | 补充所有接口文档（doc/08） |
 | 代码重构 | P2 | 5天 | 优化代码结构、提高可维护性 |
 | 性能优化 | P2 | 3天 | 数据库索引、缓存优化 |
+
+## V-09 服务层跨域 Mapper 治理（R11 机器强制新增后登记）
+
+- [ ] AuthService → HotelMapper（登录/酒店状态校验改走 HotelService）
+- [ ] NightAuditConfigService → HotelMapper（改走 HotelService）
+- [ ] GuestService → StayMapper（在住查询改走 StayService）
+- [ ] RoomService → Guest/Reservation/RoomPrice/StayMapper（改走对应 Service）
+- [ ] MemberService → GuestMapper（改走 GuestService）
+- [ ] NightAuditService → GuestMapper（改走 GuestService）
+- [ ] RoomPricePlanService / RoomPriceService → RoomTypeMapper（改走 RoomTypeService）
+- [ ] ReservationService → Hotel/Room/RoomTypeMapper（改走 HotelService/RoomService）
+- [ ] StayGuestService → GuestMapper（改走 GuestService）
+- [ ] CreditService → AgreementPrice/FinTransactionMapper（协议价/账务改走对应 Service）
+- [ ] DepositService → Folio/Guest/StayMapper（改走 FolioService/GuestService/StayService）
+- [ ] FolioService → 跨 6 个域 Mapper（改走对应 Service）
+- [ ] PrepaymentService → Folio/Reservation/Stay/TeamReservationMapper（改走对应 Service）
+- [ ] ShiftService → FinTransaction/SysAccountMapper（改走账务/账户 Service）
+- [ ] StayService → 跨 10 个域 Mapper（改走对应 Service）
+- [ ] TeamFolioService → Hotel/Stay/TeamReservationMapper（改走对应 Service）
+- [ ] TeamReservationService → Folio/Guest/Hotel/Room/RoomType/Stay/TeamFolioMapper（改走对应 Service）
+- [ ] 每收敛一项，从 ArchitectureTest KNOWN_CROSS_DOMAIN_VIOLATIONS 删除对应豁免并跑 mvn test

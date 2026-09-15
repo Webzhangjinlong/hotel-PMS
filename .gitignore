@@ -47,3 +47,6 @@ Thumbs.db
 .env.*
 *.pem
 *.key
+
+# ===== 本机构建配置（含本机路径，不入仓） =====
+settings.xml
