@@ -8,8 +8,10 @@ import com.hotel.pms.common.exception.BusinessException;
 import com.hotel.pms.common.result.PageResponse;
 import com.hotel.pms.common.result.ResultCode;
 import com.hotel.pms.dao.entity.RoomPrice;
+import com.hotel.pms.dao.entity.RoomPricePlanDetail;
 import com.hotel.pms.dao.entity.RoomType;
 import com.hotel.pms.dao.mapper.RoomPriceMapper;
+import com.hotel.pms.dao.mapper.RoomPricePlanDetailMapper;
 import com.hotel.pms.dao.mapper.RoomTypeMapper;
 import com.hotel.pms.service.price.RoomPricePlanService;
 import com.hotel.pms.service.config.BaseService;
@@ -47,6 +49,9 @@ public class RoomPriceService extends BaseService<RoomPrice, RoomPriceMapper> {
     
     @Autowired
     private RoomPricePlanService roomPricePlanService;
+
+    @Autowired
+    private RoomPricePlanDetailMapper detailMapper;
     
     /**
      * 查询指定日期房价
