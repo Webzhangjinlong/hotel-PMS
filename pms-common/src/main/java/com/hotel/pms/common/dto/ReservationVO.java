@@ -111,6 +111,10 @@ public class ReservationVO implements Serializable {
      * 房价码ID
      */
     private Long pricePlanId;
+    /**
+     * 协议单位ID
+     */
+    private Long creditCompanyId;
 
     /**
      * 特殊要求

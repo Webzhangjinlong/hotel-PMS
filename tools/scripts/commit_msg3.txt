@@ -1,0 +1,14 @@
+feat(reservation): 新增预订弹窗增强——房价来源标注/协议单位联动/预付款押金
+
+后端：
+- Flyway V1_37_0：reservation 表新增 credit_company_id 列（协议单位）
+- Reservation 实体 / ReservationCreateDTO / ReservationVO 新增 creditCompanyId
+- ReservationCreateDTO 新增 prepaymentAmount / depositAmount / paymentMethod（可选）
+- ReservationService.create：预付款/押金 >0 时写入 reservation_prepayment 表
+  （PREPAYMENT=预付款 / DEPOSIT=押金，支付方式默认 CASH）
+
+前端（预订列表页新增预订弹窗）：
+- 房价来源标注：协议价/房价码价/门市价/手工修改（tag 展示，改价自动识别）
+- 协议单位联动（可选）：选中协议单位按 协议单位+房型 匹配协议价，优先于房价码价
+- 预付款/押金（可选）+ 支付方式（填金额时显示，默认现金）
+- 切换房型时协议价/房价码价联动刷新

@@ -10,10 +10,12 @@ import com.hotel.pms.common.result.PageResponse;
 import com.hotel.pms.common.result.ResultCode;
 import com.hotel.pms.dao.entity.Hotel;
 import com.hotel.pms.dao.entity.Reservation;
+import com.hotel.pms.dao.entity.ReservationPrepayment;
 import com.hotel.pms.dao.entity.Room;
 import com.hotel.pms.dao.entity.RoomType;
 import com.hotel.pms.dao.mapper.HotelMapper;
 import com.hotel.pms.dao.mapper.ReservationMapper;
+import com.hotel.pms.dao.mapper.ReservationPrepaymentMapper;
 import com.hotel.pms.dao.mapper.RoomMapper;
 import com.hotel.pms.dao.mapper.RoomTypeMapper;
 import com.hotel.pms.service.price.RoomPriceService;
@@ -26,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -61,6 +64,9 @@ public class ReservationService extends BaseService<Reservation, ReservationMapp
 
     @Autowired
     private RoomPriceService roomPriceService;
+
+    @Autowired
+    private ReservationPrepaymentMapper prepaymentMapper;
 
     /**
      * 分页查询预订列表
@@ -210,10 +216,41 @@ public class ReservationService extends BaseService<Reservation, ReservationMapp
         // 保存到数据库
         mapper.insert(reservation);
 
+        // 【预付款/押金：金额>0 时写入预订预付款记录（reservation_prepayment）】
+        if (dto.getPrepaymentAmount() != null && dto.getPrepaymentAmount().compareTo(BigDecimal.ZERO) > 0) {
+            savePrepayment(reservation.getId(), dto.getHotelId(), "PREPAYMENT", dto.getPrepaymentAmount(), dto.getPaymentMethod());
+        }
+        if (dto.getDepositAmount() != null && dto.getDepositAmount().compareTo(BigDecimal.ZERO) > 0) {
+            savePrepayment(reservation.getId(), dto.getHotelId(), "DEPOSIT", dto.getDepositAmount(), dto.getPaymentMethod());
+        }
+
         log.info("创建预订成功：hotelId={}, reservationNo={}, guestName={}",
                 dto.getHotelId(), reservation.getReservationNo(), dto.getGuestName());
 
         return convertToVO(reservation);
+    }
+
+    /**
+     * 写入预订预付款/押金记录（reservation_prepayment）
+     *
+     * @param reservationId 预订ID
+     * @param hotelId       酒店ID
+     * @param type          类型：PREPAYMENT-预付款 / DEPOSIT-押金
+     * @param amount        金额
+     * @param paymentMethod 支付方式（空则默认 CASH）
+     */
+    private void savePrepayment(Long reservationId, Long hotelId, String type, BigDecimal amount, String paymentMethod) {
+        ReservationPrepayment prepayment = new ReservationPrepayment();
+        prepayment.setHotelId(hotelId);
+        prepayment.setReservationId(reservationId);
+        prepayment.setPrepaymentType(type);
+        prepayment.setAmount(amount);
+        prepayment.setPaymentMethod(StringUtils.hasText(paymentMethod) ? paymentMethod : "CASH");
+        prepayment.setPaymentTime(LocalDateTime.now());
+        prepayment.setStatus("PAID");
+        prepayment.setRemark("新增预订时录入");
+        prepaymentMapper.insert(prepayment);
+        log.info("预订预付款/押金已记录：reservationId={}, type={}, amount={}", reservationId, type, amount);
     }
 
     /**

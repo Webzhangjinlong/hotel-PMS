@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 import java.io.Serializable;
+import jakarta.validation.constraints.DecimalMin;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
@@ -67,4 +68,14 @@ public class ReservationCreateDTO implements Serializable {
     
     /** 价格来源：PRICE_PLAN/MANUAL/CUSTOM */
     private String priceSource;
+    /** 协议单位ID（协议价时使用，可选） */
+    private Long creditCompanyId;
+    /** 预付款金额（可选，>0 时创建预付款记录） */
+    @DecimalMin(value = "0", message = "预付款金额不能为负")
+    private BigDecimal prepaymentAmount;
+    /** 押金金额（可选，>0 时创建押金记录） */
+    @DecimalMin(value = "0", message = "押金金额不能为负")
+    private BigDecimal depositAmount;
+    /** 支付方式：CASH/WECHAT/ALIPAY/POS（预付款/押金时使用，默认 CASH） */
+    private String paymentMethod;
 }
