@@ -81,8 +81,9 @@ public class RoomPriceController {
     public Result<RoomPriceVO> getPriceByDate(
             @Parameter(description = "酒店ID") @RequestParam Long hotelId,
             @Parameter(description = "房型ID") @RequestParam Long roomTypeId,
-            @Parameter(description = "日期") @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate date) {
-        RoomPriceVO result = roomPriceService.getPriceByDate(hotelId, roomTypeId, date);
+            @Parameter(description = "日期") @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate date,
+            @Parameter(description = "房价码ID（可选）") @RequestParam(required = false) Long pricePlanId) {
+        RoomPriceVO result = roomPriceService.getPriceByDate(hotelId, roomTypeId, date, pricePlanId);
         return Result.success(result);
     }
     

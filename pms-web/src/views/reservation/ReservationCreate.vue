@@ -101,6 +101,9 @@
                     :value="item.id"
                   />
                 </el-select>
+                <div v-if="formData.pricePlanId && planDailyPrice" class="rate-price-hint">
+                  该房价码金额：<span class="rate-price-value">¥{{ planDailyPrice }}</span>/晚
+                </div>
               </el-form-item>
               <el-form-item label="排房">
                 <div class="room-select-area">
@@ -223,7 +226,7 @@
             </div>
             <el-divider />
             <div class="fee-item">
-              <span class="fee-label">房价码价格</span>
+              <span class="fee-label">房价码金额</span>
               <span class="fee-value plan-price">¥{{ planDailyPrice || '-' }}/晚 <span class="price-hint">（只读）</span></span>
             </div>
             <div class="fee-item">
@@ -416,37 +419,48 @@ const handleRoomTypeChange = async () => {
   } else {
     availableRoomOptions.value = []
   }
+  // 【联动】已选房价码时，按新房型刷新房价码金额
+  if (formData.pricePlanId) {
+    fetchPriceByPlan()
+  }
 }
 
 /** 房价手动修改 */
 const onDailyPriceChange = () => {}
 
 /** 房价码变化处理 */
-const handlePricePlanChange = async () => {
-  if (formData.pricePlanId && formData.roomTypeId) {
-    try {
-      const res = await request.get('/v1/prices/query', { params: { hotelId: userStore.hotelId, roomTypeId: formData.roomTypeId, date: new Date().toISOString().split('T')[0] } })
-      if (res.data?.price) {
-        planDailyPrice.value = res.data.price // 房价码价格（只读参考价）
-        formData.dailyPrice = res.data.price // 预定价格（初始值=房价码价格）
-      }
-    } catch (error) {
-      console.error('获取房价失败', error)
-    }
-  } else if (formData.pricePlanId) {
-    try {
-      const planRes = await request.get('/v1/price-plans/' + formData.pricePlanId)
-      if (planRes.data?.details && planRes.data.details.length > 0) {
-        planDailyPrice.value = planRes.data.details[0].finalPrice
-        formData.dailyPrice = planRes.data.details[0].finalPrice
-      }
-    } catch (error) {
-      console.error('获取房价失败', error)
-    }
-  } else {
+/**
+ * 按 房价码 + 房型 查询房价码金额（/v1/prices/query 支持 pricePlanId）
+ * 有房价码无房型时等待房型联动（handleRoomTypeChange）
+ */
+const fetchPriceByPlan = async () => {
+  if (!formData.pricePlanId) {
     planDailyPrice.value = null
     formData.dailyPrice = null
+    return
   }
+  if (!formData.roomTypeId) return
+  try {
+    const res = await request.get('/v1/prices/query', {
+      params: {
+        hotelId: userStore.hotelId,
+        roomTypeId: formData.roomTypeId,
+        date: new Date().toISOString().split('T')[0],
+        pricePlanId: formData.pricePlanId
+      }
+    })
+    if (res.data?.price) {
+      planDailyPrice.value = res.data.price // 房价码金额（只读参考价）
+      formData.dailyPrice = res.data.price // 预定价格（初始值=房价码金额）
+    }
+  } catch (error) {
+    console.error('获取房价码金额失败', error)
+  }
+}
+
+/** 房价码变化处理 */
+const handlePricePlanChange = () => {
+  fetchPriceByPlan()
 }
 
 /** 房间选择回调 */
@@ -719,4 +733,16 @@ onMounted(async () => {
   color: #909399;
   font-size: 14px;
 }
+.rate-price-hint {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #909399;
+  line-height: 20px;
+}
+
+.rate-price-value {
+  color: #e6a23c;
+  font-weight: 600;
+}
+
 </style>

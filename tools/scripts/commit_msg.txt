@@ -1,0 +1,9 @@
+feat(reservation): 新增预定支持房价码金额（按 房价码+房型 查询 final_price）
+
+- RoomPriceController /v1/prices/query 增加可选 pricePlanId 参数
+- RoomPriceService 新增 getPriceByDate(hotelId, roomTypeId, date, pricePlanId) 重载：
+  按 房价码+房型 查 room_price_plan_detail.final_price，无明细则回退门市价/房型价
+- ReservationCreate.vue：
+  fetchPriceByPlan 统一查询房价码金额（传 pricePlanId），房型变化联动刷新
+  房价码下拉下方显示"该房价码金额"（每晚安），费用预览标签修正为"房价码金额"
+  修复此前选房价码后显示的是门市价而非房价码价的问题
