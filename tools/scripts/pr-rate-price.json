@@ -1,0 +1,6 @@
+{
+  "title": "feat(reservation): 新增预定支持房价码金额（按 房价码+房型 查询 final_price）",
+  "head": "feat/reservation-rate-price",
+  "base": "main",
+  "body": "## 需求\n预订管理-新增预订弹窗中，房价码金额此前显示不正确（实际是门市价）。\n\n## 改动\n- **RoomPriceController**：`/v1/prices/query` 增加可选 `pricePlanId` 参数\n- **RoomPriceService**：新增 `getPriceByDate(hotelId, roomTypeId, date, pricePlanId)` 重载——按 房价码+房型 查 `room_price_plan_detail.final_price`，无明细则回退门市价/房型基础价\n- **ReservationCreate.vue**：\n  - 新增 `fetchPriceByPlan()`：房价码+房型联动查询房价码金额\n  - 房价码下拉下方显示“该房价码金额 ¥X/晚”\n  - 切换房型时联动刷新房价码金额\n  - 费用预览标签修正为“房价码金额”\n\n## 验证\n- `mvn -s settings.xml -pl pms-api -am test`：10/10 全绿（含 ArchUnit 架构守护）\n- `npm run build`：通过\n\n## 说明\n房价码金额数据源：`room_price_plan_detail.final_price`（房价码+房型唯一约束 uk_plan_detail）"
+}

@@ -1,0 +1,6 @@
+{
+  "title": "fix(dashboard): 首页快捷新增预订/散客入住弹窗显示正确的房价码金额",
+  "head": "feat/dashboard-rate-price",
+  "base": "main",
+  "body": "## 需求\n用户在首页 Dashboard「新增预订」快捷弹窗找不到正确的房价码金额（原显示的是门市价，标签为\"房价码价格\"）。\n\n## 改动（DashboardView.vue）\n- **handleReservationPP / handleWalkInPP**：查询 `/v1/prices/query` 时传入 `pricePlanId`，按 房价码+房型 查 `room_price_plan_detail.final_price`（修复显示门市价的问题）\n- 新增预订弹窗只读金额标签\"房价码价格\"→\"房价码金额\"\n- 两个弹窗切换房型时联动刷新房价码金额（已选房价码场景）\n\n## 验证\n- `npm run build` 通过\n\n## 说明\n后端 `/v1/prices/query` 已支持 `pricePlanId`（PR #2 已合并），本改动为前端接入。"
+}

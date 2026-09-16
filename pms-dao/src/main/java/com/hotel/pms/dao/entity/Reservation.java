@@ -82,6 +82,10 @@ public class Reservation extends BaseEntity {
     @TableField("member_id")
     private Long memberId;
 
+    /** 协议单位ID（协议价时使用） */
+    @TableField("credit_company_id")
+    private Long creditCompanyId;
+
     /** 特殊要求 */
     @TableField("special_requests")
     private String specialRequests;

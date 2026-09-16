@@ -213,18 +213,42 @@
             <el-option v-for="item in pricePlanOptions" :key="item.id" :label="item.code + ' - ' + item.name" :value="item.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="房价码价格" v-if="planDailyPrice">
+        <el-form-item label="房价码价格" v-if="planDailyPrice && priceSource !== 'AGREEMENT'">
           <span class="plan-price-display">¥{{ planDailyPrice }}/晚（只读）</span>
         </el-form-item>
+        <el-form-item label="协议单位">
+          <el-select v-model="formData.creditCompanyId" placeholder="请选择协议单位（可选）" clearable style="width: 100%" @change="handleCreditCompanyChange">
+            <el-option v-for="item in creditCompanyOptions" :key="item.id" :label="item.companyName" :value="item.id" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="预定价格">
-          <el-input-number v-model="formData.dailyPrice" :min="0" :precision="2" placeholder="可修改" style="width: 200px" />
+          <el-input-number v-model="formData.dailyPrice" :min="0" :precision="2" placeholder="可修改" style="width: 200px" @change="handleDailyPriceChange" />
           <span class="price-unit">元/晚</span>
+        </el-form-item>
+        <el-form-item label="房价来源">
+          <el-tag size="small" :type="priceSourceTagType">{{ priceSourceLabel }}</el-tag>
         </el-form-item>
         <el-form-item label="入住日期" prop="checkInDate">
           <el-date-picker v-model="formData.checkInDate" type="date" placeholder="选择入住日期" value-format="YYYY-MM-DD" style="width: 100%" />
         </el-form-item>
         <el-form-item label="离店日期" prop="checkOutDate">
           <el-date-picker v-model="formData.checkOutDate" type="date" placeholder="选择离店日期" value-format="YYYY-MM-DD" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="预付款">
+          <el-input-number v-model="formData.prepaymentAmount" :min="0" :precision="2" style="width: 180px" placeholder="可选" />
+          <span class="price-unit">元</span>
+        </el-form-item>
+        <el-form-item label="押金">
+          <el-input-number v-model="formData.depositAmount" :min="0" :precision="2" style="width: 180px" placeholder="可选" />
+          <span class="price-unit">元</span>
+        </el-form-item>
+        <el-form-item label="支付方式" v-if="formData.prepaymentAmount || formData.depositAmount">
+          <el-select v-model="formData.paymentMethod" style="width: 100%">
+            <el-option label="现金" value="CASH" />
+            <el-option label="微信" value="WECHAT" />
+            <el-option label="支付宝" value="ALIPAY" />
+            <el-option label="POS" value="POS" />
+          </el-select>
         </el-form-item>
         <el-form-item label="来源" prop="source">
           <el-select v-model="formData.source" placeholder="请选择来源" style="width: 100%">
@@ -322,6 +346,12 @@ const pricePlanOptions = ref([])
 const showRoomDialog = ref(false)
 const selectedRoomInfo = ref(null)
 const planDailyPrice = ref(null)
+// 协议单位选项
+const creditCompanyOptions = ref([])
+// 房价来源：AGREEMENT-协议价 / PRICE_PLAN-房价码价 / WALKIN-门市价 / MANUAL-手工修改
+const priceSource = ref('WALKIN')
+// 自动填充的参考价（用于判断是否手工修改）
+const autoPrice = ref(null)
 
 // ========== 弹窗相关 ==========
 const dialogVisible = ref(false)
@@ -346,7 +376,11 @@ const formData = reactive({
   source: 'WALK_IN',
   pricePlanId: null,
   dailyPrice: null,
-  specialRequests: ''
+  specialRequests: '',
+  creditCompanyId: null,
+  prepaymentAmount: null,
+  depositAmount: null,
+  paymentMethod: 'CASH'
 })
 
 // ========== 表单验证规则 ==========
@@ -391,6 +425,19 @@ const fetchRoomTypeOptions = async () => {
 const handleRoomTypeChange = () => {
   selectedRoomInfo.value = null
   formData.roomId = null
+  // 【联动】协议单位优先：已选协议单位时按新房型查协议价
+  if (formData.creditCompanyId) {
+    handleCreditCompanyChange(formData.creditCompanyId)
+    return
+  }
+  // 【联动】已选房价码时按新房型刷新房价码金额
+  if (formData.pricePlanId) {
+    handlePricePlanChange(formData.pricePlanId)
+    return
+  }
+  autoPrice.value = null
+  planDailyPrice.value = null
+  priceSource.value = 'WALKIN'
 }
 
 // ========== 房间选择回调 ==========
@@ -406,25 +453,107 @@ const clearRoomSelection = () => {
 }
 
 // ========== 房价码变化处理 ==========
+/**
+ * 房价码变化处理：按 房价码 + 房型 查询房价码金额（/v1/prices/query 支持 pricePlanId）
+ */
 const handlePricePlanChange = async (planId) => {
-  if (planId) {
-    try {
-      if (formData.roomTypeId) {
-        const res = await request.get('/v1/prices/query', { params: { hotelId: queryParams.hotelId, roomTypeId: formData.roomTypeId, date: new Date().toISOString().split('T')[0] } })
-        if (res.data?.price) { planDailyPrice.value = res.data.price;
-          formData.dailyPrice = res.data.price
-        }
-      } else {
-        const planRes = await request.get('/v1/price-plans/' + planId)
-        if (planRes.data?.details && planRes.data.details.length > 0) {
-          formData.dailyPrice = planRes.data.details[0].finalPrice
-        }
-      }
-    } catch (error) {
-      console.error('获取房价失败', error)
-    }
-  } else {
+  if (!planId) {
+    planDailyPrice.value = null
     formData.dailyPrice = null
+    autoPrice.value = null
+    priceSource.value = 'WALKIN'
+    // 若已选协议单位，优先显示协议价
+    if (formData.creditCompanyId) {
+      handleCreditCompanyChange(formData.creditCompanyId)
+    }
+    return
+  }
+  // 协议单位优先：已选协议单位时房价码不覆盖协议价
+  if (formData.creditCompanyId) {
+    handleCreditCompanyChange(formData.creditCompanyId)
+    return
+  }
+  try {
+    if (formData.roomTypeId) {
+      const res = await request.get('/v1/prices/query', { params: { hotelId: queryParams.hotelId, roomTypeId: formData.roomTypeId, date: new Date().toISOString().split('T')[0], pricePlanId: planId } })
+      if (res.data?.price) {
+        planDailyPrice.value = res.data.price
+        formData.dailyPrice = res.data.price
+        autoPrice.value = res.data.price
+        priceSource.value = 'PRICE_PLAN'
+      }
+    } else {
+      const planRes = await request.get('/v1/price-plans/' + planId)
+      if (planRes.data?.details && planRes.data.details.length > 0) {
+        planDailyPrice.value = planRes.data.details[0].finalPrice
+        formData.dailyPrice = planRes.data.details[0].finalPrice
+        autoPrice.value = planRes.data.details[0].finalPrice
+        priceSource.value = 'PRICE_PLAN'
+      }
+    }
+  } catch (error) {
+    console.error('获取房价码金额失败', error)
+  }
+}
+
+// ========== 协议单位变化处理 ==========
+/**
+ * 选中协议单位：按 协议单位 + 房型 匹配协议价（agreement_price），匹配则房价=协议价
+ */
+const handleCreditCompanyChange = async (companyId) => {
+  if (!companyId) {
+    // 清除协议单位：恢复房价码/门市价
+    planDailyPrice.value = null
+    autoPrice.value = null
+    if (formData.pricePlanId) {
+      handlePricePlanChange(formData.pricePlanId)
+    } else {
+      formData.dailyPrice = null
+      priceSource.value = 'WALKIN'
+    }
+    return
+  }
+  if (!formData.roomTypeId) return
+  try {
+    const res = await request.get('/v1/credit-companies/' + companyId + '/agreement-prices')
+    const list = res.data || []
+    const match = list.find(p => p.roomTypeId === formData.roomTypeId && p.status === 'ACTIVE')
+    if (match && match.price) {
+      autoPrice.value = match.price
+      planDailyPrice.value = match.price
+      formData.dailyPrice = match.price
+      priceSource.value = 'AGREEMENT'
+    } else {
+      ElMessage.warning('该协议单位暂无当前房型的有效协议价')
+      planDailyPrice.value = null
+      autoPrice.value = null
+      if (formData.pricePlanId) {
+        handlePricePlanChange(formData.pricePlanId)
+      } else {
+        formData.dailyPrice = null
+        priceSource.value = 'WALKIN'
+      }
+    }
+  } catch (error) {
+    console.error('获取协议价失败', error)
+  }
+}
+
+// ========== 手动修改价格 ==========
+const handleDailyPriceChange = (val) => {
+  if (val === null || val === undefined) return
+  if (autoPrice.value === null || autoPrice.value === undefined || Math.abs(val - autoPrice.value) > 0.001) {
+    priceSource.value = 'MANUAL'
+  }
+}
+
+// ========== 获取协议单位选项 ==========
+const fetchCreditCompanies = async () => {
+  try {
+    const res = await request.get('/v1/credit-companies', { params: { page: 1, size: 200 } })
+    creditCompanyOptions.value = res.data?.records || []
+  } catch (error) {
+    console.error('获取协议单位失败:', error)
   }
 }
 
@@ -513,6 +642,16 @@ const handleCurrentChange = (val) => {
   fetchData()
 }
 
+// ========== 房价来源标签 ==========
+const priceSourceLabel = computed(() => {
+  const map = { AGREEMENT: '协议价', PRICE_PLAN: '房价码价', WALKIN: '门市价', MANUAL: '手工修改' }
+  return map[priceSource.value] || '门市价'
+})
+const priceSourceTagType = computed(() => {
+  const map = { AGREEMENT: 'success', PRICE_PLAN: 'warning', WALKIN: 'info', MANUAL: 'danger' }
+  return map[priceSource.value] || 'info'
+})
+
 // ========== 新增 ==========
 const handleAdd = () => {
   isEdit.value = false
@@ -527,6 +666,13 @@ const handleAdd = () => {
   formData.pricePlanId = null
   formData.dailyPrice = null
   formData.specialRequests = ''
+  formData.creditCompanyId = null
+  formData.prepaymentAmount = null
+  formData.depositAmount = null
+  formData.paymentMethod = 'CASH'
+  planDailyPrice.value = null
+  autoPrice.value = null
+  priceSource.value = 'WALKIN'
   dialogVisible.value = true
 }
 
@@ -544,6 +690,13 @@ const handleEdit = (row) => {
   formData.pricePlanId = row.pricePlanId || null
   formData.dailyPrice = row.dailyPrice || null
   formData.specialRequests = row.specialRequests
+  formData.creditCompanyId = row.creditCompanyId || null
+  formData.prepaymentAmount = null
+  formData.depositAmount = null
+  formData.paymentMethod = 'CASH'
+  planDailyPrice.value = null
+  autoPrice.value = null
+  priceSource.value = 'WALKIN'
   dialogVisible.value = true
 }
 
@@ -683,6 +836,7 @@ onMounted(() => {
   fetchData()
   fetchRoomTypeOptions()
   fetchPricePlanOptions()
+  fetchCreditCompanies()
   fetchTodayArrivalsCount()
 })
 </script>
