@@ -151,7 +151,7 @@
           </div>
         </el-form-item>
         <el-form-item label="房价码"><el-select v-model="reservationForm.pricePlanId" placeholder="请选择房价码（可选）" clearable style="width: 100%" @change="handleReservationPP"><el-option v-for="item in pricePlanOptions" :key="item.id" :label="item.code + ' - ' + item.name" :value="item.id" /></el-select></el-form-item>
-        <el-form-item label="房价码价格" v-if="planDailyPrice"><span class="plan-price-display">¥{{ planDailyPrice }}/晚（只读）</span></el-form-item>
+        <el-form-item label="房价码金额" v-if="planDailyPrice"><span class="plan-price-display">¥{{ planDailyPrice }}/晚（只读）</span></el-form-item>
         <el-form-item label="预定价格"><el-input-number v-model="reservationForm.dailyPrice" :min="0" :precision="2" style="width: 200px" /><span class="price-unit">元/晚</span></el-form-item>
         <el-form-item label="入住日期" prop="checkInDate"><el-date-picker v-model="reservationForm.checkInDate" type="date" placeholder="选择入住日期" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item>
         <el-form-item label="离店日期" prop="checkOutDate"><el-date-picker v-model="reservationForm.checkOutDate" type="date" placeholder="选择离店日期" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item>
@@ -301,12 +301,20 @@ async function handleRoomTypeChange(roomTypeId) {
     const res = await request.get('/v1/rooms', { params: { hotelId, status: 'AVAILABLE', roomTypeId } })
     availableRooms.value = res.data?.records || []
   } catch (e) { console.error(e) }
+  // 【联动】已选房价码时按新房型刷新房价码金额
+  if (walkInForm.pricePlanId) {
+    handleWalkInPP(walkInForm.pricePlanId)
+  }
 }
 
 // ========== 预订房型变化处理 ==========
 function handleReservationRoomTypeChange() {
   selectedRoomInfo.value = null
   reservationForm.roomId = null
+  // 【联动】已选房价码时按新房型刷新房价码金额
+  if (reservationForm.pricePlanId) {
+    handleReservationPP(reservationForm.pricePlanId)
+  }
 }
 
 // ========== 预订房间选择回调 ==========
@@ -323,7 +331,7 @@ function clearRoomSelection() {
 
 const handleReservationPP = async (planId) => {
   if (planId && reservationForm.roomTypeId) {
-    try { const r = await request.get('/v1/prices/query', { params: { hotelId, roomTypeId: reservationForm.roomTypeId, date: new Date().toISOString().split('T')[0] } }); if (r.data?.price) { planDailyPrice.value = r.data.price; reservationForm.dailyPrice = r.data.price } } catch(e) {}
+    try { const r = await request.get('/v1/prices/query', { params: { hotelId, roomTypeId: reservationForm.roomTypeId, date: new Date().toISOString().split('T')[0], pricePlanId: planId } }); if (r.data?.price) { planDailyPrice.value = r.data.price; reservationForm.dailyPrice = r.data.price } } catch(e) {}
   } else if (planId) {
     try { const r = await request.get('/v1/price-plans/' + planId); if (r.data?.details?.length) planDailyPrice.value = r.data.details[0].finalPrice; reservationForm.dailyPrice = r.data.details[0].finalPrice } catch(e) {}
   } else { planDailyPrice.value = null; reservationForm.dailyPrice = null }
@@ -331,7 +339,7 @@ const handleReservationPP = async (planId) => {
 
 const handleWalkInPP = async (planId) => {
   if (planId && walkInForm.roomTypeId) {
-    try { const r = await request.get('/v1/prices/query', { params: { hotelId, roomTypeId: walkInForm.roomTypeId, date: new Date().toISOString().split('T')[0] } }); if (r.data?.price) walkInForm.dailyPrice = r.data.price } catch(e) {}
+    try { const r = await request.get('/v1/prices/query', { params: { hotelId, roomTypeId: walkInForm.roomTypeId, date: new Date().toISOString().split('T')[0], pricePlanId: planId } }); if (r.data?.price) walkInForm.dailyPrice = r.data.price } catch(e) {}
   } else if (planId) {
     try { const r = await request.get('/v1/price-plans/' + planId); if (r.data?.details?.length) walkInForm.dailyPrice = r.data.details[0].finalPrice } catch(e) {}
   } else { walkInForm.dailyPrice = null }
