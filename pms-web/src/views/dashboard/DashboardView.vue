@@ -151,11 +151,17 @@
           </div>
         </el-form-item>
         <el-form-item label="房价码"><el-select v-model="reservationForm.pricePlanId" placeholder="请选择房价码（可选）" clearable style="width: 100%" @change="handleReservationPP"><el-option v-for="item in pricePlanOptions" :key="item.id" :label="item.code + ' - ' + item.name" :value="item.id" /></el-select></el-form-item>
-        <el-form-item label="房价码金额" v-if="planDailyPrice"><span class="plan-price-display">¥{{ planDailyPrice }}/晚（只读）</span></el-form-item>
-        <el-form-item label="预定价格"><el-input-number v-model="reservationForm.dailyPrice" :min="0" :precision="2" style="width: 200px" /><span class="price-unit">元/晚</span></el-form-item>
+        <el-form-item label="房价码金额" v-if="planDailyPrice && priceSource !== 'AGREEMENT'"><span class="plan-price-display">¥{{ planDailyPrice }}/晚（只读）</span></el-form-item>
+        <el-form-item label="协议单位"><el-select v-model="reservationForm.creditCompanyId" placeholder="请选择协议单位（可选）" clearable style="width: 100%" @change="handleReservationCC"><el-option v-for="item in creditCompanyOptions" :key="item.id" :label="item.companyName" :value="item.id" /></el-select></el-form-item>
+        <el-form-item label="预定价格"><el-input-number v-model="reservationForm.dailyPrice" :min="0" :precision="2" style="width: 200px" @change="handleReservationPriceChange" /><span class="price-unit">元/晚</span></el-form-item>
+        <el-form-item label="房价来源"><el-tag size="small" :type="reservationPriceSourceTagType">{{ reservationPriceSourceLabel }}</el-tag></el-form-item>
         <el-form-item label="入住日期" prop="checkInDate"><el-date-picker v-model="reservationForm.checkInDate" type="date" placeholder="选择入住日期" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item>
         <el-form-item label="离店日期" prop="checkOutDate"><el-date-picker v-model="reservationForm.checkOutDate" type="date" placeholder="选择离店日期" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item>
+        <el-form-item label="预付款"><el-input-number v-model="reservationForm.prepaymentAmount" :min="0" :precision="2" style="width: 180px" placeholder="可选" /><span class="price-unit">元</span></el-form-item>
+        <el-form-item label="押金"><el-input-number v-model="reservationForm.depositAmount" :min="0" :precision="2" style="width: 180px" placeholder="可选" /><span class="price-unit">元</span></el-form-item>
+        <el-form-item label="支付方式" v-if="reservationForm.prepaymentAmount || reservationForm.depositAmount"><el-select v-model="reservationForm.paymentMethod" style="width: 100%"><el-option label="现金" value="CASH" /><el-option label="微信" value="WECHAT" /><el-option label="支付宝" value="ALIPAY" /><el-option label="POS" value="POS" /></el-select></el-form-item>
         <el-form-item label="来源"><el-select v-model="reservationForm.source" style="width: 100%"><el-option label="散客" value="WALK_IN" /><el-option label="电话" value="PHONE" /><el-option label="OTA" value="OTA" /></el-select></el-form-item>
+        <el-form-item label="特殊要求"><el-input v-model="reservationForm.specialRequests" type="textarea" :rows="3" placeholder="请输入特殊要求" /></el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="reservationDialogVisible = false">取消</el-button>
@@ -239,6 +245,12 @@ function getPayText(row) {
 const submitLoading = ref(false)
 const roomTypeOptions = ref([])
 const pricePlanOptions = ref([])
+// 协议单位选项
+const creditCompanyOptions = ref([])
+// 房价来源：AGREEMENT-协议价 / PRICE_PLAN-房价码价 / WALKIN-门市价 / MANUAL-手工修改
+const priceSource = ref('WALKIN')
+// 自动填充参考价（判断是否手工修改）
+const autoPrice = ref(null)
 const availableRooms = ref([])
 // 排房相关
 const showRoomDialog = ref(false)
@@ -248,7 +260,7 @@ const planDailyPrice = ref(null)
 // 预订弹窗
 const reservationDialogVisible = ref(false)
 const reservationFormRef = ref(null)
-const reservationForm = reactive({ guestName: '', guestPhone: '', roomTypeId: null, roomId: null, pricePlanId: null, dailyPrice: null, checkInDate: '', checkOutDate: '', source: 'WALK_IN', hotelId: userStore.hotelId })
+const reservationForm = reactive({ guestName: '', guestPhone: '', roomTypeId: null, roomId: null, pricePlanId: null, dailyPrice: null, checkInDate: '', checkOutDate: '', source: 'WALK_IN', creditCompanyId: null, prepaymentAmount: null, depositAmount: null, paymentMethod: 'CASH', specialRequests: '', hotelId: userStore.hotelId })
 const reservationRules = {
   guestName: [{ required: true, message: '请输入客人姓名', trigger: 'blur' }],
   guestPhone: [{ required: true, message: '请输入客人电话', trigger: 'blur' }],
@@ -272,17 +284,19 @@ const walkInRules = {
 // ========== 方法 ==========
 async function loadOptions() {
   try {
-    const [rt, pp] = await Promise.all([
+    const [rt, pp, cc] = await Promise.all([
       request.get('/v1/room-types', { params: { hotelId } }),
-      request.get('/v1/price-plans/list', { params: { hotelId } })
+      request.get('/v1/price-plans/list', { params: { hotelId } }),
+      request.get('/v1/credit-companies', { params: { page: 1, size: 200 } })
     ])
     roomTypeOptions.value = rt.data?.records || []
     pricePlanOptions.value = pp.data || []
+    creditCompanyOptions.value = cc.data?.records || []
   } catch (e) { console.error(e) }
 }
 
 function showReservationDialog() {
-  Object.assign(reservationForm, { guestName: '', guestPhone: '', roomTypeId: null, roomId: null, pricePlanId: null, dailyPrice: null, checkInDate: '', checkOutDate: '', source: 'WALK_IN' }); selectedRoomInfo.value = null; planDailyPrice.value = null
+  Object.assign(reservationForm, { guestName: '', guestPhone: '', roomTypeId: null, roomId: null, pricePlanId: null, dailyPrice: null, checkInDate: '', checkOutDate: '', source: 'WALK_IN', creditCompanyId: null, prepaymentAmount: null, depositAmount: null, paymentMethod: 'CASH', specialRequests: '' }); selectedRoomInfo.value = null; planDailyPrice.value = null; autoPrice.value = null; priceSource.value = 'WALKIN'
   reservationDialogVisible.value = true
   loadOptions()
 }
@@ -311,10 +325,19 @@ async function handleRoomTypeChange(roomTypeId) {
 function handleReservationRoomTypeChange() {
   selectedRoomInfo.value = null
   reservationForm.roomId = null
+  // 【联动】协议单位优先：已选协议单位时按新房型查协议价
+  if (reservationForm.creditCompanyId) {
+    handleReservationCC(reservationForm.creditCompanyId)
+    return
+  }
   // 【联动】已选房价码时按新房型刷新房价码金额
   if (reservationForm.pricePlanId) {
     handleReservationPP(reservationForm.pricePlanId)
+    return
   }
+  autoPrice.value = null
+  planDailyPrice.value = null
+  priceSource.value = 'WALKIN'
 }
 
 // ========== 预订房间选择回调 ==========
@@ -330,12 +353,90 @@ function clearRoomSelection() {
 }
 
 const handleReservationPP = async (planId) => {
-  if (planId && reservationForm.roomTypeId) {
-    try { const r = await request.get('/v1/prices/query', { params: { hotelId, roomTypeId: reservationForm.roomTypeId, date: new Date().toISOString().split('T')[0], pricePlanId: planId } }); if (r.data?.price) { planDailyPrice.value = r.data.price; reservationForm.dailyPrice = r.data.price } } catch(e) {}
-  } else if (planId) {
-    try { const r = await request.get('/v1/price-plans/' + planId); if (r.data?.details?.length) planDailyPrice.value = r.data.details[0].finalPrice; reservationForm.dailyPrice = r.data.details[0].finalPrice } catch(e) {}
-  } else { planDailyPrice.value = null; reservationForm.dailyPrice = null }
+  if (!planId) {
+    planDailyPrice.value = null
+    reservationForm.dailyPrice = null
+    autoPrice.value = null
+    priceSource.value = 'WALKIN'
+    // 已选协议单位时优先显示协议价
+    if (reservationForm.creditCompanyId) {
+      handleReservationCC(reservationForm.creditCompanyId)
+    }
+    return
+  }
+  // 协议单位优先：已选协议单位时房价码不覆盖协议价
+  if (reservationForm.creditCompanyId) {
+    handleReservationCC(reservationForm.creditCompanyId)
+    return
+  }
+  try {
+    if (reservationForm.roomTypeId) {
+      const r = await request.get('/v1/prices/query', { params: { hotelId, roomTypeId: reservationForm.roomTypeId, date: new Date().toISOString().split('T')[0], pricePlanId: planId } })
+      if (r.data?.price) { planDailyPrice.value = r.data.price; reservationForm.dailyPrice = r.data.price; autoPrice.value = r.data.price; priceSource.value = 'PRICE_PLAN' }
+    } else {
+      const r = await request.get('/v1/price-plans/' + planId)
+      if (r.data?.details?.length) { planDailyPrice.value = r.data.details[0].finalPrice; reservationForm.dailyPrice = r.data.details[0].finalPrice; autoPrice.value = r.data.details[0].finalPrice; priceSource.value = 'PRICE_PLAN' }
+    }
+  } catch(e) { console.error('获取房价码金额失败', e) }
 }
+
+// ========== 协议单位变化处理 ==========
+/** 选中协议单位：按 协议单位 + 房型 匹配协议价，优先于房价码价 */
+const handleReservationCC = async (companyId) => {
+  if (!companyId) {
+    planDailyPrice.value = null
+    autoPrice.value = null
+    if (reservationForm.pricePlanId) {
+      handleReservationPP(reservationForm.pricePlanId)
+    } else {
+      reservationForm.dailyPrice = null
+      priceSource.value = 'WALKIN'
+    }
+    return
+  }
+  if (!reservationForm.roomTypeId) return
+  try {
+    const res = await request.get('/v1/credit-companies/' + companyId + '/agreement-prices')
+    const list = res.data || []
+    const match = list.find(p => p.roomTypeId === reservationForm.roomTypeId && p.status === 'ACTIVE')
+    if (match && match.price) {
+      autoPrice.value = match.price
+      planDailyPrice.value = match.price
+      reservationForm.dailyPrice = match.price
+      priceSource.value = 'AGREEMENT'
+    } else {
+      ElMessage.warning('该协议单位暂无当前房型的有效协议价')
+      planDailyPrice.value = null
+      autoPrice.value = null
+      if (reservationForm.pricePlanId) {
+        handleReservationPP(reservationForm.pricePlanId)
+      } else {
+        reservationForm.dailyPrice = null
+        priceSource.value = 'WALKIN'
+      }
+    }
+  } catch (error) {
+    console.error('获取协议价失败', error)
+  }
+}
+
+// ========== 手动修改价格 ==========
+const handleReservationPriceChange = (val) => {
+  if (val === null || val === undefined) return
+  if (autoPrice.value === null || autoPrice.value === undefined || Math.abs(val - autoPrice.value) > 0.001) {
+    priceSource.value = 'MANUAL'
+  }
+}
+
+// ========== 房价来源标签 ==========
+const reservationPriceSourceLabel = computed(() => {
+  const map = { AGREEMENT: '协议价', PRICE_PLAN: '房价码价', WALKIN: '门市价', MANUAL: '手工修改' }
+  return map[priceSource.value] || '门市价'
+})
+const reservationPriceSourceTagType = computed(() => {
+  const map = { AGREEMENT: 'success', PRICE_PLAN: 'warning', WALKIN: 'info', MANUAL: 'danger' }
+  return map[priceSource.value] || 'info'
+})
 
 const handleWalkInPP = async (planId) => {
   if (planId && walkInForm.roomTypeId) {
@@ -352,7 +453,7 @@ async function submitReservation() {
     submitLoading.value = true
     try {
       const n = Math.ceil((new Date(reservationForm.checkOutDate) - new Date(reservationForm.checkInDate)) / 86400000)
-      await request.post('/v1/reservations', { ...reservationForm, roomId: reservationForm.roomId, totalAmount: reservationForm.dailyPrice ? reservationForm.dailyPrice * n : null, priceSource: reservationForm.dailyPrice ? 'MANUAL' : 'PRICE_PLAN' })
+      await request.post('/v1/reservations', { ...reservationForm, roomId: reservationForm.roomId, totalAmount: reservationForm.dailyPrice ? reservationForm.dailyPrice * n : null, priceSource: priceSource.value })
       ElMessage.success('预订创建成功')
       reservationDialogVisible.value = false
       loadData()
